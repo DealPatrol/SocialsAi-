@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { motion } from "framer-motion";
+import PremiumShell from "@/components/premium/PremiumShell";
+import GlassPanel from "@/components/premium/GlassPanel";
+import Logo from "@/components/premium/Logo";
+import ShimmerButton from "@/components/premium/ShimmerButton";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -35,56 +40,70 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <h1 className="text-xl font-bold text-white mb-2">Create account</h1>
-        <p className="text-sm text-gray-400 mb-6">
-          Public beta — add your X account and automate growth within platform rules.
-        </p>
-        <form
-          onSubmit={onSubmit}
-          className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4"
-        >
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name (optional)"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white"
-          />
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white"
-          />
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (8+ characters)"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white"
-          />
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm disabled:opacity-40"
+    <PremiumShell>
+      <div className="min-h-screen flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex justify-center">
+            <Logo />
+          </div>
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="font-display text-2xl font-bold text-center gradient-text mb-2"
           >
-            {loading ? "Creating…" : "Create account"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500 mt-4">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-400 hover:underline">
-            Sign in
-          </Link>
-        </p>
+            Join the beta
+          </motion.h1>
+          <p className="text-sm text-zinc-400 text-center mb-8">
+            Connect X and automate growth within platform rules.
+          </p>
+          <GlassPanel hover={false}>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label className="premium-label">Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Optional"
+                  className="premium-input"
+                />
+              </div>
+              <div>
+                <label className="premium-label">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="premium-input"
+                />
+              </div>
+              <div>
+                <label className="premium-label">Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="8+ characters"
+                  className="premium-input"
+                />
+              </div>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <ShimmerButton type="submit" disabled={loading} className="w-full">
+                {loading ? "Creating…" : "Launch account"}
+              </ShimmerButton>
+            </form>
+          </GlassPanel>
+          <p className="text-center text-sm text-zinc-500 mt-6">
+            Already have an account?{" "}
+            <Link href="/login" className="text-cyan-400 hover:text-cyan-300">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
-    </main>
+    </PremiumShell>
   );
 }

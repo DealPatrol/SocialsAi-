@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import ShimmerButton from "@/components/premium/ShimmerButton";
 
 interface QueueItem {
   id: string;
@@ -10,6 +12,12 @@ interface QueueItem {
   payload: Record<string, string | number>;
   createdAt: string;
 }
+
+const typeColors: Record<string, string> = {
+  post: "text-fuchsia-300 border-fuchsia-500/30 bg-fuchsia-500/10",
+  reply: "text-cyan-300 border-cyan-500/30 bg-cyan-500/10",
+  follow: "text-violet-300 border-violet-500/30 bg-violet-500/10",
+};
 
 export default function AutomationQueue() {
   const [items, setItems] = useState<QueueItem[]>([]);
@@ -36,79 +44,101 @@ export default function AutomationQueue() {
     load();
   }
 
-  if (loading) return <p className="text-sm text-gray-500">Loading queue…</p>;
+  if (loading) {
+    return (
+      <div className="flex gap-2 items-center text-sm text-zinc-500">
+        <motion.span
+          className="h-4 w-4 rounded-full border-2 border-cyan-500/30 border-t-cyan-400"
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+        />
+        Loading queue…
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
-        No queued actions. Connect X, enable automation, and run a cycle — or use Demo queue.
+      <p className="text-sm text-zinc-500">
+        No queued actions. Connect X, enable automation, and run — or use Demo queue.
       </p>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="p-4 rounded-lg border border-gray-800 bg-gray-900"
-        >
-          <div className="flex justify-between items-start gap-2 mb-2">
-            <span className="text-xs font-semibold uppercase text-gray-500">
-              {item.type} · {item.status}
-            </span>
-            {item.engagementScore != null && (
-              <span className="text-xs text-emerald-400">
-                score {item.engagementScore}
+    <div className="space-y-4">
+      <AnimatePresence mode="popLayout">
+        {items.map((item, i) => (
+          <motion.div
+            key={item.id}
+            layout
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ delay: i * 0.04 }}
+            className="glass-panel !p-4"
+          >
+            <div className="flex justify-between items-start gap-2 mb-3">
+              <span
+                className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full border ${
+                  typeColors[item.type] ?? typeColors.reply
+                }`}
+              >
+                {item.type} · {item.status}
               </span>
+              {item.engagementScore != null && (
+                <span className="text-xs font-mono text-emerald-400">
+                  {item.engagementScore}
+                </span>
+              )}
+            </div>
+            {item.type === "reply" && (
+              <div className="text-sm space-y-2">
+                <p className="text-zinc-500">
+                  → @{String(item.payload.authorUsername)}
+                </p>
+                <p className="text-zinc-400 italic text-xs">
+                  &ldquo;{String(item.payload.tweetText)}&rdquo;
+                </p>
+                <p className="text-zinc-100">{String(item.payload.replyText)}</p>
+              </div>
             )}
-          </div>
-          {item.type === "reply" && (
-            <div className="text-sm space-y-2">
-              <p className="text-gray-500">
-                Replying to @{String(item.payload.authorUsername)}
+            {item.type === "post" && (
+              <div className="text-sm space-y-2">
+                <p className="text-zinc-500 text-xs">
+                  {String(item.payload.pillarLabel ?? "Original post")}
+                </p>
+                <p className="text-zinc-100">{String(item.payload.postText)}</p>
+              </div>
+            )}
+            {item.type === "follow" && (
+              <p className="text-sm text-zinc-200">
+                Follow @{String(item.payload.username)} —{" "}
+                {String(item.payload.reason)}
               </p>
-              <p className="text-gray-400 italic">
-                &ldquo;{String(item.payload.tweetText)}&rdquo;
-              </p>
-              <p className="text-white">{String(item.payload.replyText)}</p>
-            </div>
-          )}
-          {item.type === "post" && (
-            <div className="text-sm space-y-2">
-              <p className="text-gray-500">
-                Original post · {String(item.payload.pillarLabel ?? "content")}
-              </p>
-              <p className="text-white">{String(item.payload.postText)}</p>
-            </div>
-          )}
-          {item.type === "follow" && (
-            <p className="text-sm text-gray-200">
-              Follow @{String(item.payload.username)} —{" "}
-              {String(item.payload.reason)} (prospect{" "}
-              {String(item.payload.prospectScore)})
-            </p>
-          )}
-          {item.status === "pending" && (
-            <div className="flex gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => act(item.id, "approve")}
-                className="text-xs px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white"
-              >
-                Approve & post
-              </button>
-              <button
-                type="button"
-                onClick={() => act(item.id, "reject")}
-                className="text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
-              >
-                Reject
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+            {item.status === "pending" && (
+              <div className="flex gap-2 mt-4">
+                <ShimmerButton
+                  type="button"
+                  className="!py-1.5 !px-3 !text-xs"
+                  onClick={() => act(item.id, "approve")}
+                >
+                  Approve & post
+                </ShimmerButton>
+                <ShimmerButton
+                  type="button"
+                  variant="ghost"
+                  className="!py-1.5 !px-3 !text-xs"
+                  onClick={() => act(item.id, "reject")}
+                >
+                  Reject
+                </ShimmerButton>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
