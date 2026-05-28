@@ -2,7 +2,14 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
-const url = process.env.DATABASE_URL ?? "file:./data/socials.db";
+function resolveDatabaseUrl(): string {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  // Ephemeral store on Vercel serverless until Turso/Postgres is configured
+  if (process.env.VERCEL) return ":memory:";
+  return "file:./data/socials.db";
+}
+
+const url = resolveDatabaseUrl();
 
 const client = createClient({ url });
 

@@ -60,7 +60,7 @@ export function finalizeReply(
   draft: GeneratedReply,
   discloseAutomation: boolean
 ): GeneratedReply {
-  let text = applyAutomationDisclosure(draft.text, discloseAutomation);
+  const text = applyAutomationDisclosure(draft.text, discloseAutomation);
   const compliance = validateReplyContent(text);
   return {
     ...draft,

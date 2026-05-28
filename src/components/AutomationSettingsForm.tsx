@@ -7,8 +7,10 @@ interface Settings {
   mode: "draft" | "auto";
   repliesEnabled: boolean;
   followsEnabled: boolean;
+  postsEnabled: boolean;
   maxRepliesPerDay: number;
   maxFollowsPerDay: number;
+  maxPostsPerDay: number;
   requireApproval: boolean;
   discloseAutomation: boolean;
   automationEnabled: boolean;
@@ -38,8 +40,10 @@ export default function AutomationSettingsForm({
             mode: data.settings.mode,
             repliesEnabled: data.settings.repliesEnabled,
             followsEnabled: data.settings.followsEnabled,
+            postsEnabled: data.settings.postsEnabled,
             maxRepliesPerDay: data.settings.maxRepliesPerDay,
             maxFollowsPerDay: data.settings.maxFollowsPerDay,
+            maxPostsPerDay: data.settings.maxPostsPerDay,
             requireApproval: data.settings.requireApproval,
             discloseAutomation: data.settings.discloseAutomation,
             automationEnabled: data.automationEnabled,
@@ -79,7 +83,7 @@ export default function AutomationSettingsForm({
     setMessage(
       demo
         ? "Demo items added to queue — review on Automation page"
-        : `Run complete: ${data.result?.repliesQueued ?? 0} replies, ${data.result?.followsQueued ?? 0} follows queued`
+        : `Run complete: ${data.result?.postsQueued ?? 0} posts, ${data.result?.repliesQueued ?? 0} replies, ${data.result?.followsQueued ?? 0} follows queued`
     );
   }
 
@@ -109,6 +113,14 @@ export default function AutomationSettingsForm({
       </p>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
+        <label className="flex items-center gap-2 text-gray-300">
+          <input
+            type="checkbox"
+            checked={settings.postsEnabled}
+            onChange={(e) => save({ postsEnabled: e.target.checked })}
+          />
+          AI original posts
+        </label>
         <label className="flex items-center gap-2 text-gray-300">
           <input
             type="checkbox"
@@ -143,7 +155,18 @@ export default function AutomationSettingsForm({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
+        <label className="text-xs text-gray-500">
+          Max posts/day
+          <input
+            type="number"
+            min={1}
+            max={10}
+            value={settings.maxPostsPerDay}
+            onChange={(e) => save({ maxPostsPerDay: Number(e.target.value) })}
+            className="mt-1 w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white"
+          />
+        </label>
         <label className="text-xs text-gray-500">
           Max replies/day
           <input

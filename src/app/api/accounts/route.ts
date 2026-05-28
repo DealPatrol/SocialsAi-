@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db, ensureDb } from "@/lib/db";
-import { socialAccounts, automationSettings } from "@/lib/db/schema";
+import { socialAccounts } from "@/lib/db/schema";
 import { PLATFORM_CAPABILITIES } from "@/lib/platforms/types";
 
 export async function GET() {

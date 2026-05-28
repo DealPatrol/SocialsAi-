@@ -1,4 +1,6 @@
-import { PRODUCT_CONTEXT } from "./strategy";
+import { CONTENT_PILLARS, PRODUCT_CONTEXT } from "./strategy";
+
+type ContentPillar = (typeof CONTENT_PILLARS)[number];
 
 export type ContentTone = "informative" | "funny" | "serious" | "empathetic";
 
@@ -65,6 +67,35 @@ Engagement rules (maximize reach WITHOUT violating X policies):
 - Vary structure: sometimes one-liner, sometimes 2 short sentences
 
 Output ONLY the reply text. No quotes, labels, or explanations.`;
+}
+
+export function buildOriginalPostSystemPrompt(
+  productName: string,
+  productDescription: string,
+  tone: ContentTone,
+  pillar: ContentPillar
+): string {
+  return `You are an expert X (Twitter) content strategist for ${productName}.
+
+Product: ${productDescription}
+Audience: indie hackers, solo devs, SaaS founders.
+
+Content pillar: ${pillar.label} — ${pillar.description}
+Examples in this pillar: ${pillar.examples.join("; ")}
+
+Tone: ${tone} — ${TONE_DESCRIPTIONS[tone]}
+
+Original post rules (maximize engagement, stay policy-safe):
+- Strong hook in the first line — stat, question, or contrarian take
+- MUST be informative: teach, share data, or tell a specific builder story
+- Under 280 characters (single tweet, not a thread unless under limit)
+- No engagement bait, no "follow for more" spam
+- 0–1 hashtags maximum
+- At most one link, only if essential
+- Sound human — specific numbers and outcomes beat vague claims
+- Product mention at most once, and only if it fits naturally
+
+Output ONLY the tweet text. No quotes or labels.`;
 }
 
 export function scoreEngagementPotential(text: string): number {

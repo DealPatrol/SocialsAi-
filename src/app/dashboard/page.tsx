@@ -6,9 +6,9 @@ export default function DashboardPage() {
       <section className="p-6 rounded-2xl border border-gray-800 bg-gray-900">
         <h2 className="font-semibold text-white mb-2">RepoFuse growth automation</h2>
         <p className="text-sm text-gray-400 leading-relaxed mb-4">
-          Connect X (more platforms soon). AI finds high-intent conversations, drafts
-          replies tuned for engagement — funny, serious, empathetic, always informative —
-          and optionally follows indie hackers likely to need repo intelligence tools.
+          Connect X (more platforms soon). AI drafts original posts and strategic replies
+          tuned for engagement — funny, serious, empathetic, always informative — and
+          optionally follows indie hackers likely to need repo intelligence tools.
           Everything runs through approval queues and X-compliant rate limits by default.
         </p>
         <div className="flex flex-wrap gap-2">

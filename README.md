@@ -8,7 +8,7 @@ Instagram, Facebook, and YouTube are scaffolded as **coming soon**.
 
 - **Content studio** — tweets, threads, strategic replies (Claude)
 - **Multi-user accounts** — register, sign in, connect your own X account
-- **Automation** — AI finds indie-hacker conversations, drafts replies (informative + funny / serious / empathetic tones), scores engagement potential
+- **Automation** — AI drafts original posts and strategic replies (informative + funny / serious / empathetic tones), scores engagement potential
 - **Smart follows** — targets users likely to care about repo/SaaS tools (RepoFuse ICP)
 - **X compliance** — official API only, rate limits, spam/manipulation filters, approval queue by default
 - **Cron** — optional scheduled runs via Vercel Cron (`/api/cron/automation`)

@@ -7,7 +7,6 @@ import {
   engagementLogs,
   socialAccounts,
 } from "@/lib/db/schema";
-import { encrypt } from "@/lib/encryption";
 import {
   parseToneMix,
   pickNextTone,
@@ -15,14 +14,21 @@ import {
 } from "@/lib/engagement";
 import { generateStrategicReply, finalizeReply } from "./reply-generator";
 import {
+  generateOriginalPost,
+  finalizePost,
+  pickNextPillar,
+} from "./post-generator";
+import {
   XApiClient,
   findFollowCandidates,
   buildSearchQuery,
 } from "@/lib/x/client";
 import {
   validateFollowAction,
+  validatePostAction,
   validateReplyAction,
 } from "@/lib/x/compliance";
+import type { PillarId } from "@/lib/strategy";
 import { getXOAuthConfig } from "@/lib/x/oauth";
 
 function startOfDay(): Date {
@@ -71,14 +77,17 @@ async function countActionsThisHour(
   return row?.c ?? 0;
 }
 
-async function getRecentTones(accountId: string): Promise<ContentTone[]> {
+async function getRecentTones(
+  accountId: string,
+  type: "reply" | "post" = "reply"
+): Promise<ContentTone[]> {
   const items = await db
     .select({ payload: automationQueue.payload })
     .from(automationQueue)
     .where(
       and(
         eq(automationQueue.accountId, accountId),
-        eq(automationQueue.type, "reply")
+        eq(automationQueue.type, type)
       )
     )
     .orderBy(desc(automationQueue.createdAt))
@@ -96,10 +105,36 @@ async function getRecentTones(accountId: string): Promise<ContentTone[]> {
     .filter((t): t is ContentTone => !!t);
 }
 
+async function getRecentPillarIds(accountId: string): Promise<PillarId[]> {
+  const items = await db
+    .select({ payload: automationQueue.payload })
+    .from(automationQueue)
+    .where(
+      and(
+        eq(automationQueue.accountId, accountId),
+        eq(automationQueue.type, "post")
+      )
+    )
+    .orderBy(desc(automationQueue.createdAt))
+    .limit(5);
+
+  return items
+    .map((i) => {
+      try {
+        const p = JSON.parse(i.payload) as { pillarId?: PillarId };
+        return p.pillarId;
+      } catch {
+        return undefined;
+      }
+    })
+    .filter((id): id is PillarId => !!id);
+}
+
 export interface AutomationRunResult {
   accountId: string;
   username: string;
   repliesQueued: number;
+  postsQueued: number;
   followsQueued: number;
   executed: number;
   skipped: string[];
@@ -133,6 +168,7 @@ export async function runAutomationForAccount(
     accountId,
     username: account.username,
     repliesQueued: 0,
+    postsQueued: 0,
     followsQueued: 0,
     executed: 0,
     skipped: [],
@@ -155,7 +191,69 @@ export async function runAutomationForAccount(
 
   const keywords: string[] = JSON.parse(settings.targetKeywords);
   const tones = parseToneMix(settings.toneMix);
-  const recentTones = await getRecentTones(accountId);
+  const recentReplyTones = await getRecentTones(accountId, "reply");
+  const recentPostTones = await getRecentTones(accountId, "post");
+  const recentPillarIds = await getRecentPillarIds(accountId);
+
+  if (settings.postsEnabled) {
+    const postsToday = await countActionsToday(accountId, "post");
+    const postsHour = await countActionsThisHour(accountId, "post");
+    const rateCheck = validatePostAction(
+      postsToday,
+      postsHour,
+      settings.maxPostsPerDay
+    );
+
+    if (!rateCheck.allowed) {
+      result.skipped.push(rateCheck.issues.join("; "));
+    } else {
+      const pillar = pickNextPillar(recentPillarIds);
+      const tone = pickNextTone(tones, recentPostTones);
+
+      const draft = await generateOriginalPost(
+        tone,
+        pillar,
+        settings.productContext ?? undefined
+      );
+      const final = finalizePost(draft, settings.discloseAutomation);
+
+      if (!final.compliance.allowed) {
+        result.skipped.push(
+          `Post blocked: ${final.compliance.issues.join(", ")}`
+        );
+      } else {
+        const status =
+          settings.mode === "auto" && !settings.requireApproval
+            ? "approved"
+            : "pending";
+
+        const queueId = uuid();
+        await db.insert(automationQueue).values({
+          id: queueId,
+          accountId,
+          type: "post",
+          status,
+          payload: JSON.stringify({
+            postText: final.text,
+            tone: final.tone,
+            pillarId: final.pillarId,
+            pillarLabel: final.pillarLabel,
+          }),
+          engagementScore: final.engagementScore,
+          complianceNotes: JSON.stringify(final.compliance),
+          scheduledAt: status === "approved" ? new Date() : undefined,
+        });
+        result.postsQueued++;
+
+        if (status === "approved" && !options?.dryRun && client) {
+          const executed = await executeQueueItem(queueId);
+          if (executed) result.executed++;
+        } else if (status === "approved" && !client) {
+          result.skipped.push("X API not configured — post queued only");
+        }
+      }
+    }
+  }
 
   if (settings.repliesEnabled && client) {
     const repliesToday = await countActionsToday(accountId, "reply");
@@ -173,8 +271,8 @@ export async function runAutomationForAccount(
       const tweets = await client.searchRecentTweets(query, 8);
 
       for (const tweet of tweets.slice(0, 3)) {
-        const tone = pickNextTone(tones, recentTones);
-        recentTones.push(tone);
+        const tone = pickNextTone(tones, recentReplyTones);
+        recentReplyTones.push(tone);
 
         const draft = await generateStrategicReply(
           tweet,
@@ -313,6 +411,15 @@ export async function executeQueueItem(queueId: string): Promise<boolean> {
         externalId: payload.userId,
         metadata: item.payload,
       });
+    } else if (item.type === "post") {
+      const externalId = await client.postTweet(payload.postText);
+      await db.insert(engagementLogs).values({
+        id: uuid(),
+        accountId: item.accountId,
+        action: "post",
+        externalId,
+        metadata: item.payload,
+      });
     }
 
     await db
@@ -348,6 +455,7 @@ export async function runAllAutomations(): Promise<AutomationRunResult[]> {
         accountId: account.id,
         username: account.username,
         repliesQueued: 0,
+        postsQueued: 0,
         followsQueued: 0,
         executed: 0,
         skipped: [
@@ -375,6 +483,22 @@ export async function seedDemoQueue(accountId: string): Promise<void> {
       tone: "serious",
     }),
     engagementScore: 82,
+    complianceNotes: JSON.stringify({ allowed: true, score: 95, issues: [], suggestions: [] }),
+  });
+
+  await db.insert(automationQueue).values({
+    id: uuid(),
+    accountId,
+    type: "post",
+    status: "pending",
+    payload: JSON.stringify({
+      postText:
+        "Scanned 12 old repos last night. Found payment logic I'd forgotten, a half-built auth flow, and one idea that's honestly a $2k/mo niche SaaS. Your graveyard isn't dead — it's inventory.",
+      tone: "informative",
+      pillarId: "dev-pain-points",
+      pillarLabel: "Developer Pain Points",
+    }),
+    engagementScore: 88,
     complianceNotes: JSON.stringify({ allowed: true, score: 95, issues: [], suggestions: [] }),
   });
 }

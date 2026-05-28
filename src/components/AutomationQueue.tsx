@@ -74,6 +74,14 @@ export default function AutomationQueue() {
               <p className="text-white">{String(item.payload.replyText)}</p>
             </div>
           )}
+          {item.type === "post" && (
+            <div className="text-sm space-y-2">
+              <p className="text-gray-500">
+                Original post · {String(item.payload.pillarLabel ?? "content")}
+              </p>
+              <p className="text-white">{String(item.payload.postText)}</p>
+            </div>
+          )}
           {item.type === "follow" && (
             <p className="text-sm text-gray-200">
               Follow @{String(item.payload.username)} —{" "}

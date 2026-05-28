@@ -11,6 +11,7 @@ export const X_RATE_LIMITS = {
   minMinutesBetweenActions: 5,
   maxRepliesPerHour: 8,
   maxFollowsPerHour: 5,
+  maxPostsPerHour: 3,
 } as const;
 
 const SPAM_PATTERNS = [
@@ -34,6 +35,51 @@ export interface ComplianceResult {
   score: number;
   issues: string[];
   suggestions: string[];
+}
+
+export function validatePostContent(text: string): ComplianceResult {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+
+  if (text.length > 280) {
+    issues.push("Exceeds 280 character limit");
+  }
+  if (text.length < 40) {
+    issues.push("Post too short — add more informational value");
+  }
+
+  for (const pattern of SPAM_PATTERNS) {
+    if (pattern.test(text)) {
+      issues.push("Contains spam-like phrasing");
+      break;
+    }
+  }
+
+  for (const pattern of MANIPULATION_PATTERNS) {
+    if (pattern.test(text)) {
+      issues.push("Contains engagement manipulation patterns");
+      break;
+    }
+  }
+
+  const linkCount = (text.match(/https?:\/\//g) ?? []).length;
+  if (linkCount > 1) {
+    issues.push("Too many links in a single post");
+  }
+
+  const hashtagCount = (text.match(/#\w+/g) ?? []).length;
+  if (hashtagCount > 2) {
+    suggestions.push("Reduce hashtags for better reach");
+  }
+
+  const score = Math.max(0, 100 - issues.length * 25 - suggestions.length * 5);
+
+  return {
+    allowed: issues.length === 0,
+    score,
+    issues,
+    suggestions,
+  };
 }
 
 export function validateReplyContent(text: string): ComplianceResult {
@@ -97,6 +143,28 @@ export function validateFollowAction(
   }
   if (followsThisHour >= X_RATE_LIMITS.maxFollowsPerHour) {
     issues.push("Hourly follow limit reached — wait before following more");
+  }
+
+  return {
+    allowed: issues.length === 0,
+    score: issues.length === 0 ? 100 : 0,
+    issues,
+    suggestions: [],
+  };
+}
+
+export function validatePostAction(
+  postsToday: number,
+  postsThisHour: number,
+  maxPerDay: number
+): ComplianceResult {
+  const issues: string[] = [];
+
+  if (postsToday >= Math.min(maxPerDay, X_RATE_LIMITS.maxPostsPerDay)) {
+    issues.push("Daily post limit reached");
+  }
+  if (postsThisHour >= X_RATE_LIMITS.maxPostsPerHour) {
+    issues.push("Hourly post limit reached");
   }
 
   return {
