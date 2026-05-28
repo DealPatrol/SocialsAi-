@@ -1,15 +1,17 @@
 "use client";
 
 import { signOut } from "next-auth/react";
+import ShimmerButton from "@/components/premium/ShimmerButton";
 
 export default function SignOutButton() {
   return (
-    <button
+    <ShimmerButton
       type="button"
+      variant="ghost"
       onClick={() => signOut({ callbackUrl: "/" })}
-      className="text-xs text-gray-500 hover:text-white"
+      className="!text-xs"
     >
       Sign out
-    </button>
+    </ShimmerButton>
   );
 }

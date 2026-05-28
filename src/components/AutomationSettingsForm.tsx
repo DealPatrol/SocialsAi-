@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import ShimmerButton from "@/components/premium/ShimmerButton";
 
 interface Settings {
   accountId: string;
@@ -17,6 +19,39 @@ interface Settings {
   toneMix: string[];
   targetKeywords: string[];
   productContext: string;
+}
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-3 text-sm text-zinc-300 cursor-pointer group">
+      <span
+        className={`relative h-5 w-9 rounded-full transition-colors ${
+          checked ? "bg-cyan-500/60" : "bg-white/10"
+        }`}
+      >
+        <motion.span
+          className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow"
+          animate={{ x: checked ? 16 : 0 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+        <input
+          type="checkbox"
+          className="sr-only"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+      </span>
+      {label}
+    </label>
+  );
 }
 
 export default function AutomationSettingsForm({
@@ -82,121 +117,90 @@ export default function AutomationSettingsForm({
     const data = await res.json();
     setMessage(
       demo
-        ? "Demo items added to queue — review on Automation page"
-        : `Run complete: ${data.result?.postsQueued ?? 0} posts, ${data.result?.repliesQueued ?? 0} replies, ${data.result?.followsQueued ?? 0} follows queued`
+        ? "Demo items added to queue"
+        : `Run: ${data.result?.postsQueued ?? 0} posts, ${data.result?.repliesQueued ?? 0} replies, ${data.result?.followsQueued ?? 0} follows`
     );
   }
 
   if (!settings) {
-    return <p className="text-sm text-gray-500">Loading settings for @{username}…</p>;
+    return (
+      <p className="text-sm text-zinc-500 animate-pulse">
+        Loading @{username}…
+      </p>
+    );
   }
 
   return (
-    <div className="space-y-4 p-4 rounded-xl border border-gray-800 bg-gray-900/50">
+    <div className="glass-panel space-y-5 !p-5">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-white">@{username}</h3>
-        <label className="flex items-center gap-2 text-sm text-gray-300">
-          <input
-            type="checkbox"
-            checked={settings.automationEnabled}
-            onChange={(e) => {
-              const v = e.target.checked;
-              save({ automationEnabled: v });
-            }}
-          />
-          Automation on
-        </label>
+        <h3 className="font-display text-lg font-bold gradient-text-subtle">
+          @{username}
+        </h3>
+        <Toggle
+          checked={settings.automationEnabled}
+          onChange={(v) => save({ automationEnabled: v })}
+          label="Automation on"
+        />
       </div>
 
-      <p className="text-xs text-gray-500">
-        Compliant with X automation policies: rate limits, no spam, approval queue by default.
+      <p className="text-xs text-zinc-500">
+        X-compliant rate limits · approval queue by default
       </p>
 
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <label className="flex items-center gap-2 text-gray-300">
-          <input
-            type="checkbox"
-            checked={settings.postsEnabled}
-            onChange={(e) => save({ postsEnabled: e.target.checked })}
-          />
-          AI original posts
-        </label>
-        <label className="flex items-center gap-2 text-gray-300">
-          <input
-            type="checkbox"
-            checked={settings.repliesEnabled}
-            onChange={(e) => save({ repliesEnabled: e.target.checked })}
-          />
-          AI replies
-        </label>
-        <label className="flex items-center gap-2 text-gray-300">
-          <input
-            type="checkbox"
-            checked={settings.followsEnabled}
-            onChange={(e) => save({ followsEnabled: e.target.checked })}
-          />
-          Smart follows
-        </label>
-        <label className="flex items-center gap-2 text-gray-300">
-          <input
-            type="checkbox"
-            checked={settings.requireApproval}
-            onChange={(e) => save({ requireApproval: e.target.checked })}
-          />
-          Require approval
-        </label>
-        <label className="flex items-center gap-2 text-gray-300">
-          <input
-            type="checkbox"
-            checked={settings.discloseAutomation}
-            onChange={(e) => save({ discloseAutomation: e.target.checked })}
-          />
-          Disclose automation
-        </label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Toggle
+          checked={settings.postsEnabled}
+          onChange={(v) => save({ postsEnabled: v })}
+          label="AI original posts"
+        />
+        <Toggle
+          checked={settings.repliesEnabled}
+          onChange={(v) => save({ repliesEnabled: v })}
+          label="AI replies"
+        />
+        <Toggle
+          checked={settings.followsEnabled}
+          onChange={(v) => save({ followsEnabled: v })}
+          label="Smart follows"
+        />
+        <Toggle
+          checked={settings.requireApproval}
+          onChange={(v) => save({ requireApproval: v })}
+          label="Require approval"
+        />
+        <Toggle
+          checked={settings.discloseAutomation}
+          onChange={(v) => save({ discloseAutomation: v })}
+          label="Disclose automation"
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <label className="text-xs text-gray-500">
-          Max posts/day
-          <input
-            type="number"
-            min={1}
-            max={10}
-            value={settings.maxPostsPerDay}
-            onChange={(e) => save({ maxPostsPerDay: Number(e.target.value) })}
-            className="mt-1 w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white"
-          />
-        </label>
-        <label className="text-xs text-gray-500">
-          Max replies/day
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={settings.maxRepliesPerDay}
-            onChange={(e) =>
-              save({ maxRepliesPerDay: Number(e.target.value) })
-            }
-            className="mt-1 w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white"
-          />
-        </label>
-        <label className="text-xs text-gray-500">
-          Max follows/day
-          <input
-            type="number"
-            min={1}
-            max={25}
-            value={settings.maxFollowsPerDay}
-            onChange={(e) =>
-              save({ maxFollowsPerDay: Number(e.target.value) })
-            }
-            className="mt-1 w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white"
-          />
-        </label>
+        {(
+          [
+            ["Max posts/day", "maxPostsPerDay", 10],
+            ["Max replies/day", "maxRepliesPerDay", 50],
+            ["Max follows/day", "maxFollowsPerDay", 25],
+          ] as const
+        ).map(([label, key, max]) => (
+          <label key={key} className="premium-label !text-[10px]">
+            {label}
+            <input
+              type="number"
+              min={1}
+              max={max}
+              value={settings[key]}
+              onChange={(e) =>
+                save({ [key]: Number(e.target.value) } as Partial<Settings>)
+              }
+              className="premium-input mt-1 !py-1.5"
+            />
+          </label>
+        ))}
       </div>
 
-      <label className="block text-xs text-gray-500">
-        Product context (for AI — your product or RepoFuse)
+      <label className="premium-label">
+        Product context
         <textarea
           value={settings.productContext}
           onChange={(e) =>
@@ -204,30 +208,39 @@ export default function AutomationSettingsForm({
           }
           onBlur={() => save({ productContext: settings.productContext })}
           rows={2}
-          className="mt-1 w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white resize-none"
+          className="premium-input mt-1 resize-none"
         />
       </label>
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <ShimmerButton
           type="button"
+          variant="ghost"
           disabled={saving}
           onClick={() => runNow(true)}
-          className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white"
+          className="!text-xs"
         >
           Demo queue
-        </button>
-        <button
+        </ShimmerButton>
+        <ShimmerButton
           type="button"
           disabled={saving || !settings.automationEnabled}
           onClick={() => runNow(false)}
-          className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40"
+          className="!text-xs"
         >
           Run now
-        </button>
+        </ShimmerButton>
       </div>
 
-      {message && <p className="text-xs text-blue-400">{message}</p>}
+      {message && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-xs text-cyan-400"
+        >
+          {message}
+        </motion.p>
+      )}
     </div>
   );
 }

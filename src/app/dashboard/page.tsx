@@ -1,44 +1,50 @@
 import Link from "next/link";
+import GlassPanel from "@/components/premium/GlassPanel";
+import PageHeader from "@/components/premium/PageHeader";
+
+const linkPrimary =
+  "inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 text-white shadow-[0_0_40px_-8px_rgba(34,211,238,0.5)] hover:scale-[1.02] transition-transform";
+
+const linkGhost =
+  "inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold border border-white/15 bg-white/5 text-zinc-200 hover:border-cyan-400/40 hover:scale-[1.02] transition-all";
 
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      <section className="p-6 rounded-2xl border border-gray-800 bg-gray-900">
-        <h2 className="font-semibold text-white mb-2">RepoFuse growth automation</h2>
-        <p className="text-sm text-gray-400 leading-relaxed mb-4">
-          Connect X (more platforms soon). AI drafts original posts and strategic replies
-          tuned for engagement — funny, serious, empathetic, always informative — and
-          optionally follows indie hackers likely to need repo intelligence tools.
-          Everything runs through approval queues and X-compliant rate limits by default.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/dashboard/accounts"
-            className="text-sm px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
-          >
+      <PageHeader
+        badge="Command center"
+        title="Growth automation"
+        subtitle="AI drafts original posts and strategic replies tuned for engagement — with approval queues and X-compliant rate limits by default."
+      />
+
+      <GlassPanel delay={0}>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/dashboard/accounts" className={linkPrimary}>
             Connect accounts
           </Link>
-          <Link
-            href="/dashboard/automation"
-            className="text-sm px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:border-gray-400"
-          >
-            Automation & queue
+          <Link href="/dashboard/automation" className={linkGhost}>
+            Automation queue
           </Link>
         </div>
-      </section>
+      </GlassPanel>
 
-      <section className="p-4 rounded-xl border border-amber-900/50 bg-amber-950/20">
-        <p className="text-xs font-semibold text-amber-400 uppercase mb-2">
-          X compliance
-        </p>
-        <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-          <li>Uses official X API only — no scraping or bots</li>
-          <li>Conservative daily/hourly caps on replies and follows</li>
-          <li>Spam and engagement-bait patterns blocked before posting</li>
-          <li>Approval queue on by default — you stay in control</li>
-          <li>Instagram, Facebook, YouTube marked coming soon</li>
+      <GlassPanel delay={1} className="!border-amber-500/20">
+        <p className="premium-label text-amber-300/90">X compliance</p>
+        <ul className="text-xs text-zinc-400 space-y-2 mt-3">
+          {[
+            "Official X API only — no scraping",
+            "Conservative daily/hourly caps",
+            "Spam & engagement-bait blocked",
+            "Approval queue on by default",
+            "Instagram, Facebook, YouTube coming soon",
+          ].map((item) => (
+            <li key={item} className="flex gap-2">
+              <span className="text-cyan-400">◆</span>
+              {item}
+            </li>
+          ))}
         </ul>
-      </section>
+      </GlassPanel>
     </div>
   );
 }
