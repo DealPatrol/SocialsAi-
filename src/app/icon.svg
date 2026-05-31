@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5b4"/>
+      <stop offset="100%" stop-color="#0099ff"/>
+    </linearGradient>
+    <linearGradient id="lineBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4a8fea"/>
+      <stop offset="100%" stop-color="#00d4a8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagon fill -->
+  <polygon
+    points="256,38 442,147 442,365 256,474 70,365 70,147"
+    fill="#0d0d12"
+  />
+
+  <!-- Hexagon gradient border -->
+  <polygon
+    points="256,38 442,147 442,365 256,474 70,365 70,147"
+    fill="none"
+    stroke="url(#hexGrad)"
+    stroke-width="18"
+    stroke-linejoin="round"
+  />
+
+  <!-- Connection: blue dot → teal dot -->
+  <line x1="188" y1="242" x2="308" y2="186" stroke="url(#lineBlue)" stroke-width="13" stroke-linecap="round"/>
+
+  <!-- Connection: teal dot → peach dot -->
+  <line x1="308" y1="186" x2="378" y2="254" stroke="#e0885a" stroke-width="13" stroke-linecap="round"/>
+
+  <!-- Blue dot (left) -->
+  <circle cx="188" cy="242" r="32" fill="#4a7fea"/>
+
+  <!-- Teal dot (top center) -->
+  <circle cx="308" cy="186" r="38" fill="#00d4a8"/>
+
+  <!-- Peach dot (right) -->
+  <circle cx="378" cy="254" r="28" fill="#e8c8a8"/>
+
+  <!-- Green dot (bottom left) -->
+  <circle cx="172" cy="368" r="32" fill="#00c87a"/>
+
+  <!-- Orange dot (bottom right) -->
+  <circle cx="368" cy="368" r="32" fill="#e85428"/>
+</svg>

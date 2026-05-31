@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SocialsAI — RepoFuse Growth Engine",
   description: "AI-powered post generator for the RepoFuse build-in-public strategy",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
