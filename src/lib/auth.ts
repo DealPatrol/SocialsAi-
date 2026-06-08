@@ -1,6 +1,13 @@
 import NextAuth from "next-auth";
 import Twitter from "next-auth/providers/twitter";
 
+if (!process.env.TWITTER_CLIENT_ID) {
+  throw new Error("Missing TWITTER_CLIENT_ID environment variable");
+}
+if (!process.env.TWITTER_CLIENT_SECRET) {
+  throw new Error("Missing TWITTER_CLIENT_SECRET environment variable");
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Twitter({
