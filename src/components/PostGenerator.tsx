@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { CONTENT_PILLARS, POST_FORMATS, TARGET_ACCOUNTS } from "@/lib/strategy";
 import type { PillarId, FormatId } from "@/lib/strategy";
 import type { GenerateResponse } from "@/app/api/generate/route";
 
 export default function PostGenerator() {
+  const { data: session } = useSession();
   const [format, setFormat] = useState<FormatId>("single-tweet");
   const [pillarId, setPillarId] = useState<PillarId>("build-in-public");
   const [context, setContext] = useState("");
@@ -14,6 +16,9 @@ export default function PostGenerator() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  const [posting, setPosting] = useState<number | null>(null);
+  const [postError, setPostError] = useState<string | null>(null);
+  const [postSuccess, setPostSuccess] = useState<string | null>(null);
 
   async function generate() {
     if (!context.trim()) return;
@@ -41,6 +46,37 @@ export default function PostGenerator() {
     await navigator.clipboard.writeText(text);
     setCopied(idx);
     setTimeout(() => setCopied(null), 1500);
+  }
+
+  async function postToTwitter(text: string, idx: number) {
+    if (!session?.user) {
+      setPostError("Please log in with Twitter to post");
+      return;
+    }
+
+    setPosting(idx);
+    setPostError(null);
+    setPostSuccess(null);
+
+    try {
+      const res = await fetch("/api/post-to-twitter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to post tweet");
+      }
+
+      setPostSuccess(`Tweet posted! ID: ${data.tweetId}`);
+      setTimeout(() => setPostSuccess(null), 3000);
+    } catch (e) {
+      setPostError(e instanceof Error ? e.message : "Failed to post");
+    } finally {
+      setPosting(null);
+    }
   }
 
   const isReply = format === "reply";
@@ -158,6 +194,18 @@ export default function PostGenerator() {
         </div>
       )}
 
+      {/* Post success/error */}
+      {postSuccess && (
+        <div className="p-4 rounded-lg bg-green-900/30 border border-green-700 text-green-300 text-sm">
+          ✓ {postSuccess}
+        </div>
+      )}
+      {postError && (
+        <div className="p-4 rounded-lg bg-red-900/30 border border-red-700 text-red-300 text-sm">
+          {postError}
+        </div>
+      )}
+
       {/* Results */}
       {result && (
         <div className="space-y-4">
@@ -191,12 +239,27 @@ export default function PostGenerator() {
                 <span className="text-xs text-gray-500">
                   {post.length} chars
                 </span>
-                <button
-                  onClick={() => copyPost(post, idx)}
-                  className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
-                >
-                  {copied === idx ? "Copied!" : "Copy"}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => copyPost(post, idx)}
+                    className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                  >
+                    {copied === idx ? "Copied!" : "Copy"}
+                  </button>
+                  {session?.user ? (
+                    <button
+                      onClick={() => postToTwitter(post, idx)}
+                      disabled={posting === idx}
+                      className="text-xs text-white transition-colors px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {posting === idx ? "Posting..." : "Post"}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-500 px-3 py-1">
+                      (log in to post)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           ))}
