@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getOAuthClient } from "@/lib/twitter";
+import { cookies } from "next/headers";
+
+const CALLBACK_URL = `${process.env.APP_URL}/api/auth/callback/twitter`;
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+
+  const cookieStore = await cookies();
+  const savedState = cookieStore.get("twitter_oauth_state")?.value;
+  const codeVerifier = cookieStore.get("twitter_oauth_verifier")?.value;
+
+  if (!code || !state || state !== savedState || !codeVerifier) {
+    return NextResponse.redirect(`${process.env.APP_URL}?error=oauth_failed`);
+  }
+
+  try {
+    const client = getOAuthClient();
+    const { accessToken, refreshToken, expiresIn } = await client.loginWithOAuth2({
+      code,
+      codeVerifier,
+      redirectUri: CALLBACK_URL,
+    });
+
+    cookieStore.delete("twitter_oauth_state");
+    cookieStore.delete("twitter_oauth_verifier");
+
+    cookieStore.set("twitter_access_token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: expiresIn ?? 7200,
+      path: "/",
+    });
+
+    if (refreshToken) {
+      cookieStore.set("twitter_refresh_token", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+        path: "/",
+      });
+    }
+
+    return NextResponse.redirect(`${process.env.APP_URL}?connected=true`);
+  } catch {
+    return NextResponse.redirect(`${process.env.APP_URL}?error=oauth_failed`);
+  }
+}

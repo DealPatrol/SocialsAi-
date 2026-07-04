@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CONTENT_PILLARS, POST_FORMATS, TARGET_ACCOUNTS } from "@/lib/strategy";
 import type { PillarId, FormatId } from "@/lib/strategy";
 import type { GenerateResponse } from "@/app/api/generate/route";
@@ -14,12 +14,22 @@ export default function PostGenerator() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  const [twitterConnected, setTwitterConnected] = useState(false);
+  const [posting, setPosting] = useState<number | "thread" | null>(null);
+  const [posted, setPosted] = useState<number | "thread" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/twitter/status")
+      .then((r) => r.json())
+      .then((d) => setTwitterConnected(d.connected));
+  }, []);
 
   async function generate() {
     if (!context.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
+    setPosted(null);
 
     try {
       const res = await fetch("/api/generate", {
@@ -43,7 +53,27 @@ export default function PostGenerator() {
     setTimeout(() => setCopied(null), 1500);
   }
 
+  async function postToTwitter(tweets: string[], key: number | "thread") {
+    setPosting(key);
+    try {
+      const res = await fetch("/api/tweet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tweets }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Post failed");
+      setPosted(key);
+      setTimeout(() => setPosted(null), 3000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to post");
+    } finally {
+      setPosting(null);
+    }
+  }
+
   const isReply = format === "reply";
+  const isThread = format === "thread";
 
   return (
     <div className="space-y-6">
@@ -161,26 +191,50 @@ export default function PostGenerator() {
       {/* Results */}
       {result && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Generated — {result.pillar}
-            </span>
-            <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">
-              {result.posts.length} {result.posts.length === 1 ? "option" : "options"}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Generated — {result.pillar}
+              </span>
+              <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">
+                {isThread ? `${result.posts.length} tweets` : `${result.posts.length} options`}
+              </span>
+            </div>
+            {/* Post thread as one action */}
+            {isThread && twitterConnected && (
+              <button
+                onClick={() => postToTwitter(result.posts, "thread")}
+                disabled={posting === "thread"}
+                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                  posted === "thread"
+                    ? "bg-green-600/20 border border-green-600 text-green-400"
+                    : "bg-gray-800 border border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-300 disabled:opacity-50"
+                }`}
+              >
+                <XIcon />
+                {posting === "thread" ? "Posting..." : posted === "thread" ? "Posted!" : "Post Thread"}
+              </button>
+            )}
           </div>
+
           {result.posts.map((post, idx) => (
             <div
               key={idx}
-              className="relative p-4 rounded-lg bg-gray-800 border border-gray-700 group"
+              className="relative p-4 rounded-lg bg-gray-800 border border-gray-700"
             >
-              {format === "thread" ? (
-                <div className="space-y-3">
-                  {post.split("\n").filter(Boolean).map((line, li) => (
-                    <p key={li} className="text-sm text-gray-100 leading-relaxed">
-                      {line}
-                    </p>
-                  ))}
+              {isThread ? (
+                <div className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center text-xs text-gray-300 shrink-0">
+                      {idx + 1}
+                    </div>
+                    {idx < result.posts.length - 1 && (
+                      <div className="w-px flex-1 bg-gray-600 mt-1" />
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-100 leading-relaxed whitespace-pre-wrap pt-0.5">
+                    {post}
+                  </p>
                 </div>
               ) : (
                 <p className="text-sm text-gray-100 leading-relaxed whitespace-pre-wrap">
@@ -188,20 +242,51 @@ export default function PostGenerator() {
                 </p>
               )}
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
-                <span className="text-xs text-gray-500">
-                  {post.length} chars
-                </span>
-                <button
-                  onClick={() => copyPost(post, idx)}
-                  className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
-                >
-                  {copied === idx ? "Copied!" : "Copy"}
-                </button>
+                <span className="text-xs text-gray-500">{post.length} chars</span>
+                <div className="flex items-center gap-2">
+                  {twitterConnected && !isThread && (
+                    <button
+                      onClick={() => postToTwitter([post], idx)}
+                      disabled={posting === idx}
+                      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded transition-all ${
+                        posted === idx
+                          ? "bg-green-600/20 border border-green-600 text-green-400"
+                          : "bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50"
+                      }`}
+                    >
+                      <XIcon />
+                      {posting === idx ? "Posting..." : posted === idx ? "Posted!" : "Post"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => copyPost(post, idx)}
+                    className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                  >
+                    {copied === idx ? "Copied!" : "Copy"}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
+
+          {!twitterConnected && (
+            <p className="text-xs text-gray-500 text-center">
+              <a href="/api/auth/twitter" className="text-blue-400 hover:underline">
+                Connect X
+              </a>{" "}
+              to post directly from here
+            </p>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current shrink-0" aria-hidden>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
+    </svg>
   );
 }
