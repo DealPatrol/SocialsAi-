@@ -12,7 +12,9 @@ export default function AuthButton() {
           <p className="font-medium text-white">
             {session.user?.name || "User"}
           </p>
-          <p className="text-xs text-gray-400">@{session.user?.email}</p>
+          {session.user?.email && (
+            <p className="text-xs text-gray-400">{session.user.email}</p>
+          )}
         </div>
         <button
           onClick={() => signOut()}

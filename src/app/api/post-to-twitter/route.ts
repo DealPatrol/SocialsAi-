@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { postTweet, validateTweet } from "@/lib/twitter";
+import { getToken } from "next-auth/jwt";
+import { postTweet, validateTweet, TwitterPostResponse } from "@/lib/twitter";
 
 export interface PostToTwitterRequest {
   text: string;
@@ -11,13 +11,14 @@ export interface PostToTwitterResponse {
   success: boolean;
   tweetId?: string;
   error?: string;
+  details?: string;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Check authentication
-    const session = await auth();
-    if (!session?.user || !session.user.accessToken) {
+    // Check authentication and retrieve access token from the JWT
+    const token = await getToken({ req });
+    if (!token?.accessToken) {
       return NextResponse.json(
         {
           success: false,
@@ -57,22 +58,23 @@ export async function POST(req: NextRequest) {
     const result = await postTweet({
       text: body.text,
       reply_to_tweet_id: body.replyToTweetId,
-      accessToken: session.user.accessToken,
+      accessToken: token.accessToken,
     });
 
     // Check if response is an error
-    if ("code" in result && result.code !== 200) {
+    if ("code" in result) {
       return NextResponse.json(
         {
           success: false,
           error: result.message,
+          details: result.details,
         },
         { status: result.code }
       );
     }
 
-    // Success response
-    const successResult = result as any;
+    // Success response — TypeScript narrows result to TwitterPostResponse here
+    const successResult: TwitterPostResponse = result;
     return NextResponse.json({
       success: true,
       tweetId: successResult.data.id,

@@ -6,8 +6,6 @@
 
 const TWITTER_API_BASE = "https://api.twitter.com/2";
 const TWEET_CHAR_LIMIT = 280;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_TWEETS_PER_WINDOW = 300; // Twitter's rate limit
 
 export interface TwitterPostRequest {
   text: string;
@@ -65,7 +63,9 @@ export function validateTweet(text: string): {
   }
 
   // Check for @mentions spam (reply farming)
-  const mentionCount = (text.match(/@[a-zA-Z0-9_]/g) || []).length;
+  // Use a lookbehind so @ must be at start-of-string or after whitespace,
+  // which avoids counting email addresses (e.g. user@example.com).
+  const mentionCount = (text.match(/(?<=^|\s)@[a-zA-Z0-9_]+/g) || []).length;
   if (mentionCount > 10) {
     return {
       valid: false,
@@ -93,7 +93,10 @@ export async function postTweet(
   }
 
   try {
-    const payload: Record<string, any> = {
+    const payload: {
+      text: string;
+      reply?: { in_reply_to_tweet_id: string };
+    } = {
       text: request.text,
     };
 
@@ -126,7 +129,7 @@ export async function postTweet(
         return {
           code: 429,
           message: "Rate limit exceeded",
-          details: "You&apos;ve hit Twitter&apos;s rate limit. Please wait before posting again.",
+          details: "You've hit Twitter's rate limit. Please wait before posting again.",
         };
       }
 
@@ -144,7 +147,7 @@ export async function postTweet(
           code: 403,
           message: "Forbidden",
           details:
-            "Your account doesn&apos;t have permission to post. Check your Twitter app settings.",
+            "Your account doesn't have permission to post. Check your Twitter app settings.",
         };
       }
 

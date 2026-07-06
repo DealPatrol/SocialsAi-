@@ -12,6 +12,7 @@ export default function PostGenerator() {
   const [pillarId, setPillarId] = useState<PillarId>("build-in-public");
   const [context, setContext] = useState("");
   const [replyToTweet, setReplyToTweet] = useState("");
+  const [replyToTweetId, setReplyToTweetId] = useState("");
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,10 @@ export default function PostGenerator() {
       const res = await fetch("/api/post-to-twitter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          ...(format === "reply" && replyToTweetId ? { replyToTweetId } : {}),
+        }),
       });
       const data = await res.json();
 
@@ -157,6 +161,25 @@ export default function PostGenerator() {
             placeholder="Paste the tweet text you want to reply to..."
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
           />
+          <div className="mt-3">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
+              Tweet URL or ID (required to post as a reply)
+            </label>
+            <input
+              type="text"
+              value={replyToTweetId}
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                // Accept a full Twitter/X URL (extract numeric status ID)
+                // or a bare numeric tweet ID.
+                const urlMatch = val.match(/(?:twitter|x)\.com\/[^/]+\/status\/(\d+)/);
+                const idMatch = /^\d+$/.test(val);
+                setReplyToTweetId(urlMatch ? urlMatch[1] : idMatch ? val : val);
+              }}
+              placeholder="https://x.com/user/status/123456789 or tweet ID"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            />
+          </div>
         </div>
       )}
 
