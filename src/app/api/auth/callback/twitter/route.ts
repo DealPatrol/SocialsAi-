@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.redirect(`${process.env.APP_URL}?connected=true`);
+    return NextResponse.redirect(`${process.env.APP_URL ?? req.nextUrl.origin}?connected=true`);
   } catch {
-    return NextResponse.redirect(`${process.env.APP_URL}?error=oauth_failed`);
+    return NextResponse.redirect(`${process.env.APP_URL ?? req.nextUrl.origin}?error=oauth_failed`);
   }
 }
