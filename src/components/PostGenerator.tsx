@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CONTENT_PILLARS, POST_FORMATS, TARGET_ACCOUNTS } from "@/lib/strategy";
 import type { PillarId, FormatId } from "@/lib/strategy";
@@ -280,9 +279,15 @@ export default function PostGenerator() {
 
           {!twitterConnected && (
             <p className="text-xs text-gray-500 text-center">
-              <a href="/api/auth/twitter" className="text-blue-400 hover:underline">
-                Connect X
-              </a>{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/api/auth/x/login";
+                }}
+                className="text-blue-400 hover:underline"
+              >
+                Sign in with X
+              </button>{" "}
               to post directly from here
             </p>
           )}

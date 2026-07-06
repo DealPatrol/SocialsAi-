@@ -3,11 +3,24 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"),
   name: text("name"),
+  xUserId: text("x_user_id").unique(),
+  websiteUrl: text("website_url"),
+  onboardingComplete: integer("onboarding_complete", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+});
+
+export const authCodes = sqliteTable("auth_codes", {
+  code: text("code").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 });
 
 export const socialAccounts = sqliteTable("social_accounts", {
@@ -39,25 +52,41 @@ export const automationSettings = sqliteTable("automation_settings", {
     .unique()
     .references(() => socialAccounts.id, { onDelete: "cascade" }),
   mode: text("mode", { enum: ["draft", "auto"] }).notNull().default("draft"),
+  growthPreset: text("growth_preset", {
+    enum: ["safe", "balanced", "aggressive"],
+  })
+    .notNull()
+    .default("safe"),
   repliesEnabled: integer("replies_enabled", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  threadRepliesEnabled: integer("thread_replies_enabled", { mode: "boolean" })
     .notNull()
     .default(true),
   followsEnabled: integer("follows_enabled", { mode: "boolean" })
     .notNull()
-    .default(false),
+    .default(true),
   postsEnabled: integer("posts_enabled", { mode: "boolean" })
     .notNull()
+    .default(true),
+  dmsEnabled: integer("dms_enabled", { mode: "boolean" })
+    .notNull()
     .default(false),
-  maxRepliesPerDay: integer("max_replies_per_day").notNull().default(25),
-  maxFollowsPerDay: integer("max_follows_per_day").notNull().default(15),
-  maxPostsPerDay: integer("max_posts_per_day").notNull().default(5),
+  maxRepliesPerDay: integer("max_replies_per_day").notNull().default(20),
+  maxFollowsPerDay: integer("max_follows_per_day").notNull().default(12),
+  maxPostsPerDay: integer("max_posts_per_day").notNull().default(4),
+  maxDmsPerDay: integer("max_dms_per_day").notNull().default(3),
   minMinutesBetweenActions: integer("min_minutes_between_actions")
     .notNull()
-    .default(8),
+    .default(10),
   toneMix: text("tone_mix").notNull().default('["informative","funny","serious","empathetic"]'),
   productContext: text("product_context"),
+  websiteUrl: text("website_url"),
   targetKeywords: text("target_keywords").notNull().default(
     '["indie hacker","saas founder","build in public","side project","bootstrap"]'
+  ),
+  targetAccounts: text("target_accounts").notNull().default(
+    '["levelsio","dvassallo","arvidkahl","marc_louvion","thepatwalls"]'
   ),
   requireApproval: integer("require_approval", { mode: "boolean" })
     .notNull()
@@ -75,7 +104,7 @@ export const automationQueue = sqliteTable("automation_queue", {
   accountId: text("account_id")
     .notNull()
     .references(() => socialAccounts.id, { onDelete: "cascade" }),
-  type: text("type", { enum: ["reply", "follow", "post"] }).notNull(),
+  type: text("type", { enum: ["reply", "follow", "post", "dm"] }).notNull(),
   status: text("status", {
     enum: ["pending", "approved", "rejected", "executed", "failed", "skipped"],
   })

@@ -11,11 +11,13 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const path = request.nextUrl.pathname;
       const isDashboard = path.startsWith("/dashboard");
+      const isOnboarding = path === "/onboarding";
       const isProtectedApi =
         path.startsWith("/api/accounts") ||
-        path.startsWith("/api/automation");
+        path.startsWith("/api/automation") ||
+        path.startsWith("/api/onboarding");
 
-      if (isDashboard || isProtectedApi) {
+      if (isDashboard || isOnboarding || isProtectedApi) {
         return isLoggedIn;
       }
       return true;

@@ -5,6 +5,7 @@ export interface PlatformCapabilities {
   canReply: boolean;
   canFollow: boolean;
   canSearch: boolean;
+  canDm: boolean;
   oauthAvailable: boolean;
   status: "live" | "coming_soon";
 }
@@ -18,6 +19,7 @@ export const PLATFORM_CAPABILITIES: Record<
     canReply: true,
     canFollow: true,
     canSearch: true,
+    canDm: true,
     oauthAvailable: true,
     status: "live",
   },
@@ -26,6 +28,7 @@ export const PLATFORM_CAPABILITIES: Record<
     canReply: false,
     canFollow: false,
     canSearch: false,
+    canDm: false,
     oauthAvailable: false,
     status: "coming_soon",
   },
@@ -34,6 +37,7 @@ export const PLATFORM_CAPABILITIES: Record<
     canReply: false,
     canFollow: false,
     canSearch: false,
+    canDm: false,
     oauthAvailable: false,
     status: "coming_soon",
   },
@@ -42,6 +46,7 @@ export const PLATFORM_CAPABILITIES: Record<
     canReply: false,
     canFollow: false,
     canSearch: false,
+    canDm: false,
     oauthAvailable: false,
     status: "coming_soon",
   },
@@ -54,13 +59,29 @@ export interface TweetCandidate {
   authorUsername: string;
   likeCount?: number;
   replyCount?: number;
+  isThreadRoot?: boolean;
+  isFromTargetAccount?: boolean;
+  tactic?: "thread" | "authority" | "keyword";
 }
+
+export type ThreadOpportunity = TweetCandidate & {
+  opportunityScore: number;
+};
 
 export interface FollowCandidate {
   userId: string;
   username: string;
   bio?: string;
   followerCount?: number;
+  followingCount?: number;
   prospectScore: number;
+  followBackScore?: number;
   reason: string;
+}
+
+export interface DmCandidate {
+  userId: string;
+  username: string;
+  context: string;
+  warmReason: string;
 }

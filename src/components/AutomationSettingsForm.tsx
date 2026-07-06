@@ -4,21 +4,30 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import ShimmerButton from "@/components/premium/ShimmerButton";
 
+type GrowthPreset = "safe" | "balanced" | "aggressive";
+
 interface Settings {
   accountId: string;
   mode: "draft" | "auto";
+  growthPreset: GrowthPreset;
   repliesEnabled: boolean;
+  threadRepliesEnabled: boolean;
   followsEnabled: boolean;
   postsEnabled: boolean;
+  dmsEnabled: boolean;
   maxRepliesPerDay: number;
   maxFollowsPerDay: number;
   maxPostsPerDay: number;
+  maxDmsPerDay: number;
+  minMinutesBetweenActions: number;
   requireApproval: boolean;
   discloseAutomation: boolean;
   automationEnabled: boolean;
   toneMix: string[];
   targetKeywords: string[];
+  targetAccounts: string[];
   productContext: string;
+  websiteUrl: string;
 }
 
 function Toggle({
@@ -73,18 +82,28 @@ export default function AutomationSettingsForm({
           setSettings({
             accountId,
             mode: data.settings.mode,
+            growthPreset: data.settings.growthPreset ?? "safe",
             repliesEnabled: data.settings.repliesEnabled,
+            threadRepliesEnabled: data.settings.threadRepliesEnabled ?? true,
             followsEnabled: data.settings.followsEnabled,
             postsEnabled: data.settings.postsEnabled,
+            dmsEnabled: data.settings.dmsEnabled ?? false,
             maxRepliesPerDay: data.settings.maxRepliesPerDay,
             maxFollowsPerDay: data.settings.maxFollowsPerDay,
             maxPostsPerDay: data.settings.maxPostsPerDay,
+            maxDmsPerDay: data.settings.maxDmsPerDay ?? 3,
+            minMinutesBetweenActions:
+              data.settings.minMinutesBetweenActions ?? 10,
             requireApproval: data.settings.requireApproval,
             discloseAutomation: data.settings.discloseAutomation,
             automationEnabled: data.automationEnabled,
             toneMix: JSON.parse(data.settings.toneMix),
             targetKeywords: JSON.parse(data.settings.targetKeywords),
+            targetAccounts: JSON.parse(
+              data.settings.targetAccounts ?? "[]"
+            ),
             productContext: data.settings.productContext ?? "",
+            websiteUrl: data.settings.websiteUrl ?? "",
           });
         }
       });
@@ -118,7 +137,7 @@ export default function AutomationSettingsForm({
     setMessage(
       demo
         ? "Demo items added to queue"
-        : `Run: ${data.result?.postsQueued ?? 0} posts, ${data.result?.repliesQueued ?? 0} replies, ${data.result?.followsQueued ?? 0} follows`
+        : `Run: ${data.result?.postsQueued ?? 0} posts, ${data.result?.repliesQueued ?? 0} replies, ${data.result?.followsQueued ?? 0} follows, ${data.result?.dmsQueued ?? 0} DMs`
     );
   }
 
@@ -144,8 +163,24 @@ export default function AutomationSettingsForm({
       </div>
 
       <p className="text-xs text-zinc-500">
-        X-compliant rate limits · approval queue by default
+        Account safety first — presets cap rates below X abuse thresholds.
+        Approval queue on by default.
       </p>
+
+      <label className="premium-label">
+        Growth preset
+        <select
+          value={settings.growthPreset}
+          onChange={(e) =>
+            save({ growthPreset: e.target.value as GrowthPreset })
+          }
+          className="premium-input mt-1"
+        >
+          <option value="safe">Safe — slowest, lowest ban risk</option>
+          <option value="balanced">Balanced — steady growth</option>
+          <option value="aggressive">Aggressive — max compliant volume</option>
+        </select>
+      </label>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Toggle
@@ -159,9 +194,19 @@ export default function AutomationSettingsForm({
           label="AI replies"
         />
         <Toggle
+          checked={settings.threadRepliesEnabled}
+          onChange={(v) => save({ threadRepliesEnabled: v })}
+          label="Thread targeting"
+        />
+        <Toggle
           checked={settings.followsEnabled}
           onChange={(v) => save({ followsEnabled: v })}
           label="Smart follows"
+        />
+        <Toggle
+          checked={settings.dmsEnabled}
+          onChange={(v) => save({ dmsEnabled: v })}
+          label="Warm DMs (after reply)"
         />
         <Toggle
           checked={settings.requireApproval}
@@ -175,12 +220,13 @@ export default function AutomationSettingsForm({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {(
           [
-            ["Max posts/day", "maxPostsPerDay", 10],
-            ["Max replies/day", "maxRepliesPerDay", 50],
-            ["Max follows/day", "maxFollowsPerDay", 25],
+            ["Posts/day", "maxPostsPerDay", 10],
+            ["Replies/day", "maxRepliesPerDay", 50],
+            ["Follows/day", "maxFollowsPerDay", 25],
+            ["DMs/day", "maxDmsPerDay", 5],
           ] as const
         ).map(([label, key, max]) => (
           <label key={key} className="premium-label !text-[10px]">
@@ -200,6 +246,28 @@ export default function AutomationSettingsForm({
       </div>
 
       <label className="premium-label">
+        Min minutes between actions
+        <input
+          type="number"
+          min={5}
+          max={60}
+          value={settings.minMinutesBetweenActions}
+          onChange={(e) =>
+            setSettings({
+              ...settings,
+              minMinutesBetweenActions: Number(e.target.value),
+            })
+          }
+          onBlur={() =>
+            save({
+              minMinutesBetweenActions: settings.minMinutesBetweenActions,
+            })
+          }
+          className="premium-input mt-1"
+        />
+      </label>
+
+      <label className="premium-label">
         Product context
         <textarea
           value={settings.productContext}
@@ -209,6 +277,42 @@ export default function AutomationSettingsForm({
           onBlur={() => save({ productContext: settings.productContext })}
           rows={2}
           className="premium-input mt-1 resize-none"
+        />
+      </label>
+
+      <label className="premium-label">
+        Target keywords (comma-separated)
+        <input
+          value={settings.targetKeywords.join(", ")}
+          onChange={(e) =>
+            setSettings({
+              ...settings,
+              targetKeywords: e.target.value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+            })
+          }
+          onBlur={() => save({ targetKeywords: settings.targetKeywords })}
+          className="premium-input mt-1"
+        />
+      </label>
+
+      <label className="premium-label">
+        Authority accounts to engage (comma-separated, no @)
+        <input
+          value={settings.targetAccounts.join(", ")}
+          onChange={(e) =>
+            setSettings({
+              ...settings,
+              targetAccounts: e.target.value
+                .split(",")
+                .map((s) => s.trim().replace(/^@/, ""))
+                .filter(Boolean),
+            })
+          }
+          onBlur={() => save({ targetAccounts: settings.targetAccounts })}
+          className="premium-input mt-1"
         />
       </label>
 

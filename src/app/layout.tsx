@@ -22,12 +22,11 @@ const syne = Syne({
 
 export const metadata: Metadata = {
   title: "SocialsAI — RepoFuse Growth Engine",
-  description: "AI-powered post generator for the RepoFuse build-in-public strategy",
+  description:
+    "AI social automation for RepoFuse and your product — compliant X replies, smart follows, warm DMs, multi-platform soon",
   icons: {
     icon: "/icon.svg",
   },
-  description:
-    "AI social automation for RepoFuse and your product — compliant X replies, smart follows, multi-platform soon",
 };
 
 export default function RootLayout({
