@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   description: "AI-powered post generator for the RepoFuse build-in-public strategy",
   icons: {
     icon: "/icon.svg",
-    apple: "/icon.svg",
   },
 };
 
