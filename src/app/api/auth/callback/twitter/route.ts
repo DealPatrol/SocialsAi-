@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOAuthClient } from "@/lib/twitter";
 import { cookies } from "next/headers";
 
-const CALLBACK_URL = `${process.env.APP_URL}/api/auth/callback/twitter`;
-
 export async function GET(req: NextRequest) {
+  const baseUrl = process.env.APP_URL ?? req.nextUrl.origin;
+  const callbackUrl = `${baseUrl}/api/auth/callback/twitter`;
+
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   const codeVerifier = cookieStore.get("twitter_oauth_verifier")?.value;
 
   if (!code || !state || state !== savedState || !codeVerifier) {
-    return NextResponse.redirect(`${process.env.APP_URL}?error=oauth_failed`);
+    return NextResponse.redirect(`${baseUrl}?error=oauth_failed`);
   }
 
   try {
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     const { accessToken, refreshToken, expiresIn } = await client.loginWithOAuth2({
       code,
       codeVerifier,
-      redirectUri: CALLBACK_URL,
+      redirectUri: callbackUrl,
     });
 
     cookieStore.delete("twitter_oauth_state");
