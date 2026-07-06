@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { getOAuthClient } from "@/lib/twitter";
 import { cookies } from "next/headers";
 
-const CALLBACK_URL = `${process.env.APP_URL}/api/auth/callback/twitter`;
-
 export async function GET() {
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) {
+    return NextResponse.json({ error: "APP_URL is not set" }, { status: 500 });
+  }
+
+  const callbackUrl = `${appUrl}/api/auth/callback/twitter`;
   const client = getOAuthClient();
 
   const { url, codeVerifier, state } = client.generateOAuth2AuthLink(
-    CALLBACK_URL,
+    callbackUrl,
     { scope: ["tweet.read", "tweet.write", "users.read", "offline.access"] }
   );
 
