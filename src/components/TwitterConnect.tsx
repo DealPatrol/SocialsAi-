@@ -18,8 +18,10 @@ export default function TwitterConnect() {
   }, []);
 
   async function disconnect() {
-    await fetch("/api/auth/twitter/status", { method: "DELETE" });
-    setConnected(false);
+    const res = await fetch("/api/auth/twitter/status", { method: "DELETE" });
+    if (res.ok) {
+      setConnected(false);
+    }
   }
 
   if (connected === null) return null;
