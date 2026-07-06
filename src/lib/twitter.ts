@@ -12,9 +12,12 @@ export function getOAuthClient() {
 }
 
 export async function postTweets(accessToken: string, tweets: string[]): Promise<string> {
+  if (tweets.length === 0) {
+    throw new Error("At least one tweet is required");
+  }
+
   const client = new TwitterApi(accessToken).readWrite;
   let replyToId: string | undefined;
-
   for (const text of tweets) {
     const { data } = await client.v2.tweet({
       text,
