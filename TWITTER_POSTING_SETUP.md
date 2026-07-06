@@ -14,7 +14,7 @@
   - Max 3 URLs per tweet
   - Max 10 @mentions (prevents reply farming)
 - Posts using user's OAuth token (their account)
-- Rate limit awareness (300 tweets per 15 min per user)
+- Reacts to Twitter's 429 rate-limit responses
 - Error handling for auth failures, rate limits, and validation
 
 ### 3. **UI Integration**
@@ -29,7 +29,7 @@
 - ✅ Posts as logged-in user (not bot account)
 - ✅ Character limit validation (280 chars)
 - ✅ Spam prevention (limited hashtags, mentions, URLs)
-- ✅ Respects Twitter rate limits
+- ✅ Handles Twitter rate-limit responses (429)
 - ✅ Session-based auth (secure token handling)
 - ✅ Error handling for expired sessions
 

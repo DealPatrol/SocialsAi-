@@ -1,11 +1,11 @@
-import NextAuth from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import Twitter from "next-auth/providers/twitter";
 
 // Use actual env vars if available, otherwise use dummy values for build time
 const clientId = process.env.TWITTER_CLIENT_ID || "placeholder-id";
 const clientSecret = process.env.TWITTER_CLIENT_SECRET || "placeholder-secret";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     Twitter({
       clientId,
@@ -29,23 +29,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token;
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.accessToken = token.accessToken as string;
-      }
+    async session({ session }) {
+      // Access token is kept server-side in the JWT only and is not
+      // forwarded to the browser via the session object.
       return session;
     },
   },
-});
+};
 
-// Extend NextAuth types to include accessToken
-declare module "next-auth" {
-  interface User {
+// Extend NextAuth JWT type to include OAuth tokens
+declare module "next-auth/jwt" {
+  interface JWT {
     accessToken?: string;
-  }
-  interface Session {
-    user: User & {
-      accessToken?: string;
-    };
+    refreshToken?: string;
   }
 }
