@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const tweetId = await postTweets(accessToken, body.tweets);
+    const tweetId = await postTweets(accessToken, tweets);
     return NextResponse.json({ tweetId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to post";
