@@ -62,8 +62,8 @@ export default function PostGenerator() {
         body: JSON.stringify({ tweets }),
       });
       const data = await res.json();
+      if (res.status === 401) setTwitterConnected(false);
       if (!res.ok) throw new Error(data.error ?? "Post failed");
-      setPosted(key);
       setTimeout(() => setPosted(null), 3000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to post");
