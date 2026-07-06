@@ -1,29 +1,27 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),
   name: text("name"),
   xUserId: text("x_user_id").unique(),
   websiteUrl: text("website_url"),
-  onboardingComplete: integer("onboarding_complete", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  createdAt: integer("created_at", { mode: "timestamp" })
+  onboardingComplete: boolean("onboarding_complete").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
 });
 
-export const authCodes = sqliteTable("auth_codes", {
+export const authCodes = pgTable("auth_codes", {
   code: text("code").primaryKey(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
-export const socialAccounts = sqliteTable("social_accounts", {
+export const socialAccounts = pgTable("social_accounts", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
@@ -36,16 +34,14 @@ export const socialAccounts = sqliteTable("social_accounts", {
   displayName: text("display_name"),
   accessTokenEnc: text("access_token_enc").notNull(),
   refreshTokenEnc: text("refresh_token_enc"),
-  tokenExpiresAt: integer("token_expires_at", { mode: "timestamp" }),
-  automationEnabled: integer("automation_enabled", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  createdAt: integer("created_at", { mode: "timestamp" })
+  tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true, mode: "date" }),
+  automationEnabled: boolean("automation_enabled").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
 });
 
-export const automationSettings = sqliteTable("automation_settings", {
+export const automationSettings = pgTable("automation_settings", {
   id: text("id").primaryKey(),
   accountId: text("account_id")
     .notNull()
@@ -57,21 +53,11 @@ export const automationSettings = sqliteTable("automation_settings", {
   })
     .notNull()
     .default("safe"),
-  repliesEnabled: integer("replies_enabled", { mode: "boolean" })
-    .notNull()
-    .default(true),
-  threadRepliesEnabled: integer("thread_replies_enabled", { mode: "boolean" })
-    .notNull()
-    .default(true),
-  followsEnabled: integer("follows_enabled", { mode: "boolean" })
-    .notNull()
-    .default(true),
-  postsEnabled: integer("posts_enabled", { mode: "boolean" })
-    .notNull()
-    .default(true),
-  dmsEnabled: integer("dms_enabled", { mode: "boolean" })
-    .notNull()
-    .default(false),
+  repliesEnabled: boolean("replies_enabled").notNull().default(true),
+  threadRepliesEnabled: boolean("thread_replies_enabled").notNull().default(true),
+  followsEnabled: boolean("follows_enabled").notNull().default(true),
+  postsEnabled: boolean("posts_enabled").notNull().default(true),
+  dmsEnabled: boolean("dms_enabled").notNull().default(false),
   maxRepliesPerDay: integer("max_replies_per_day").notNull().default(20),
   maxFollowsPerDay: integer("max_follows_per_day").notNull().default(12),
   maxPostsPerDay: integer("max_posts_per_day").notNull().default(4),
@@ -88,18 +74,14 @@ export const automationSettings = sqliteTable("automation_settings", {
   targetAccounts: text("target_accounts").notNull().default(
     '["levelsio","dvassallo","arvidkahl","marc_louvion","thepatwalls"]'
   ),
-  requireApproval: integer("require_approval", { mode: "boolean" })
-    .notNull()
-    .default(true),
-  discloseAutomation: integer("disclose_automation", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  requireApproval: boolean("require_approval").notNull().default(true),
+  discloseAutomation: boolean("disclose_automation").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
 });
 
-export const automationQueue = sqliteTable("automation_queue", {
+export const automationQueue = pgTable("automation_queue", {
   id: text("id").primaryKey(),
   accountId: text("account_id")
     .notNull()
@@ -113,15 +95,15 @@ export const automationQueue = sqliteTable("automation_queue", {
   payload: text("payload").notNull(),
   engagementScore: integer("engagement_score"),
   complianceNotes: text("compliance_notes"),
-  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
-  executedAt: integer("executed_at", { mode: "timestamp" }),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true, mode: "date" }),
+  executedAt: timestamp("executed_at", { withTimezone: true, mode: "date" }),
   errorMessage: text("error_message"),
-  createdAt: integer("created_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
 });
 
-export const engagementLogs = sqliteTable("engagement_logs", {
+export const engagementLogs = pgTable("engagement_logs", {
   id: text("id").primaryKey(),
   accountId: text("account_id")
     .notNull()
@@ -129,7 +111,7 @@ export const engagementLogs = sqliteTable("engagement_logs", {
   action: text("action").notNull(),
   externalId: text("external_id"),
   metadata: text("metadata"),
-  createdAt: integer("created_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
 });
