@@ -1,27 +1,57 @@
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
+function isValidLibsqlUrl(url: string): boolean {
+  return (
+    url === ":memory:" ||
+    url.startsWith("file:") ||
+    url.startsWith("libsql:") ||
+    url.startsWith("https://") ||
+    url.startsWith("http://")
+  );
+}
+
 function resolveDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  const envUrl = process.env.DATABASE_URL?.trim();
+  if (envUrl && isValidLibsqlUrl(envUrl)) return envUrl;
+
+  // Invalid placeholder (e.g. "Turso/libSQL/URL") — don't crash builds
+  if (process.env.NEXT_PHASE === "phase-production-build") return ":memory:";
   if (process.env.VERCEL) return ":memory:";
   return "file:./data/socials.db";
 }
 
-const url = resolveDatabaseUrl();
-const client = createClient({ url });
-export const db = drizzle(client, { schema });
+let client: Client | null = null;
+let dbInstance: LibSQLDatabase<typeof schema> | null = null;
+
+function getClient(): Client {
+  if (!client) {
+    client = createClient({ url: resolveDatabaseUrl() });
+  }
+  return client;
+}
+
+export const db = new Proxy({} as LibSQLDatabase<typeof schema>, {
+  get(_target, prop, receiver) {
+    if (!dbInstance) {
+      dbInstance = drizzle(getClient(), { schema });
+    }
+    return Reflect.get(dbInstance, prop, receiver);
+  },
+});
 
 async function tryAlter(sql: string) {
   try {
-    await client.execute(sql);
+    await getClient().execute(sql);
   } catch {
     // column may already exist
   }
 }
 
 export async function ensureDb() {
-  await client.execute(`
+  const c = getClient();
+  await c.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -37,7 +67,7 @@ export async function ensureDb() {
   await tryAlter(`ALTER TABLE users ADD COLUMN website_url TEXT`);
   await tryAlter(`ALTER TABLE users ADD COLUMN onboarding_complete INTEGER DEFAULT 0`);
 
-  await client.execute(`
+  await c.execute(`
     CREATE TABLE IF NOT EXISTS auth_codes (
       code TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -45,7 +75,7 @@ export async function ensureDb() {
     )
   `);
 
-  await client.execute(`
+  await c.execute(`
     CREATE TABLE IF NOT EXISTS social_accounts (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -61,7 +91,7 @@ export async function ensureDb() {
     )
   `);
 
-  await client.execute(`
+  await c.execute(`
     CREATE TABLE IF NOT EXISTS automation_settings (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL UNIQUE REFERENCES social_accounts(id) ON DELETE CASCADE,
@@ -94,7 +124,7 @@ export async function ensureDb() {
   await tryAlter(`ALTER TABLE automation_settings ADD COLUMN website_url TEXT`);
   await tryAlter(`ALTER TABLE automation_settings ADD COLUMN target_accounts TEXT DEFAULT '[]'`);
 
-  await client.execute(`
+  await c.execute(`
     CREATE TABLE IF NOT EXISTS automation_queue (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
@@ -110,7 +140,7 @@ export async function ensureDb() {
     )
   `);
 
-  await client.execute(`
+  await c.execute(`
     CREATE TABLE IF NOT EXISTS engagement_logs (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
