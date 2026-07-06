@@ -14,9 +14,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not connected to Twitter" }, { status: 401 });
   }
 
-  const body: TweetRequest = await req.json();
-  if (!body.tweets?.length) {
+  const body = (await req.json()) as Partial<TweetRequest>;
+  const tweets = body.tweets;
+
+  if (!Array.isArray(tweets) || tweets.length === 0) {
     return NextResponse.json({ error: "tweets array is required" }, { status: 400 });
+  }
+
+  if (
+    tweets.length > 25 ||
+    tweets.some((t) => typeof t !== "string" || t.trim().length === 0 || t.length > 280)
+  ) {
+    return NextResponse.json(
+      { error: "tweets must be 1-25 non-empty strings, each at most 280 characters" },
+      { status: 400 }
+    );
   }
 
   try {
