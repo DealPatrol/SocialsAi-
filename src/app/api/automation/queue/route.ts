@@ -1,0 +1,95 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { createClient } from "@/utils/supabase/server";
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { text } = await request.json();
+    if (!text || !text.trim()) {
+      return NextResponse.json(
+        { error: "Tweet content required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createClient();
+    const userId = session.user.id || session.user.email;
+
+    // Add tweet to queue for immediate posting
+    const { data, error } = await supabase
+      .from("automation_queue")
+      .insert({
+        user_id: userId,
+        tweet_content: text.trim(),
+        scheduled_for: new Date().toISOString(),
+        status: "pending",
+      })
+      .select();
+
+    if (error) {
+      console.error("[v0] Queue insert error:", error);
+      return NextResponse.json(
+        { error: "Failed to queue tweet" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      queueId: data[0]?.id,
+      message: "Tweet added to automation queue for immediate posting",
+    });
+  } catch (error) {
+    console.error("[v0] Queue API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const supabase = await createClient();
+    const userId = session.user.id || session.user.email;
+
+    const { data, error } = await supabase
+      .from("automation_queue")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error("[v0] Queue fetch error:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch queue" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ queue: data });
+  } catch (error) {
+    console.error("[v0] Queue API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

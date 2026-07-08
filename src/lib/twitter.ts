@@ -171,3 +171,198 @@ export async function postTweet(
     };
   }
 }
+
+/**
+ * Follow a user on Twitter
+ */
+export async function followUser(
+  userId: string,
+  accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(
+      `${TWITTER_API_BASE}/users/:id/following`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ target_user_id: userId }),
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return {
+          success: false,
+          error: "Rate limit exceeded on follows",
+        };
+      }
+      const error = await response.json();
+      return {
+        success: false,
+        error: error?.errors?.[0]?.message || "Failed to follow user",
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Like a tweet
+ */
+export async function likeTweet(
+  tweetId: string,
+  accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${TWITTER_API_BASE}/tweets/:id/liking`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tweet_id: tweetId }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return {
+          success: false,
+          error: "Rate limit exceeded on likes",
+        };
+      }
+      const error = await response.json();
+      return {
+        success: false,
+        error: error?.errors?.[0]?.message || "Failed to like tweet",
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Send a direct message
+ */
+export async function sendDM(
+  recipientId: string,
+  message: string,
+  accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${TWITTER_API_BASE}/dm_conversations/with/:id/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        participant_ids: [recipientId],
+        message: { text: message },
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return {
+          success: false,
+          error: "Rate limit exceeded on DMs",
+        };
+      }
+      const error = await response.json();
+      return {
+        success: false,
+        error: error?.errors?.[0]?.message || "Failed to send DM",
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Get user profile info for DM personalization
+ */
+export async function getUserProfile(
+  userId: string,
+  accessToken: string
+): Promise<
+  | {
+      id: string;
+      name: string;
+      username: string;
+      bio?: string;
+      followers_count: number;
+    }
+  | { error: string }
+> {
+  try {
+    const response = await fetch(
+      `${TWITTER_API_BASE}/users/${userId}?user.fields=description,public_metrics`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return { error: "Failed to fetch user profile" };
+    }
+
+    const data = await response.json();
+    return {
+      id: data.data.id,
+      name: data.data.name,
+      username: data.data.username,
+      bio: data.data.description,
+      followers_count: data.data.public_metrics?.followers_count || 0,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Personalize a DM template with user data
+ */
+export function personalizeDMTemplate(
+  template: string,
+  userData: {
+    name?: string;
+    username?: string;
+    bio?: string;
+    followers_count?: number;
+  }
+): string {
+  let message = template;
+  message = message.replace(/{name}/g, userData.name || "there");
+  message = message.replace(/{handle}/g, userData.username || "");
+  message = message.replace(/{bio}/g, userData.bio || "");
+  message = message.replace(
+    /{followers}/g,
+    userData.followers_count?.toString() || "0"
+  );
+  return message;
+}
