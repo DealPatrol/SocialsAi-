@@ -70,15 +70,19 @@ export async function PATCH(req: NextRequest) {
     "followsEnabled",
     "postsEnabled",
     "dmsEnabled",
+    "likesEnabled",
     "maxRepliesPerDay",
     "maxFollowsPerDay",
     "maxPostsPerDay",
     "maxDmsPerDay",
+    "maxLikesPerDay",
     "minMinutesBetweenActions",
     "toneMix",
     "productContext",
     "targetKeywords",
     "targetAccounts",
+    "postingWindows",
+    "dmTemplateId",
     "websiteUrl",
     "requireApproval",
     "discloseAutomation",
@@ -90,7 +94,8 @@ export async function PATCH(req: NextRequest) {
       if (
         key === "toneMix" ||
         key === "targetKeywords" ||
-        key === "targetAccounts"
+        key === "targetAccounts" ||
+        key === "postingWindows"
       ) {
         patch[key] =
           typeof updates[key] === "string"

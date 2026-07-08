@@ -9,6 +9,8 @@ export const X_OAUTH_SCOPES = [
   "users.read",
   "follows.read",
   "follows.write",
+  "like.read",
+  "like.write",
   "dm.read",
   "dm.write",
   "offline.access",

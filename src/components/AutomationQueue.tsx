@@ -10,6 +10,7 @@ interface QueueItem {
   status: string;
   engagementScore: number | null;
   payload: Record<string, string | number>;
+  scheduledAt?: string | null;
   createdAt: string;
 }
 
@@ -87,6 +88,11 @@ export default function AutomationQueue() {
               >
                 {item.type} · {item.status}
               </span>
+              {item.scheduledAt && (
+                <span className="text-xs text-zinc-500">
+                  due {new Date(item.scheduledAt).toLocaleString()}
+                </span>
+              )}
               {item.engagementScore != null && (
                 <span className="text-xs font-mono text-emerald-400">
                   {item.engagementScore}
@@ -136,7 +142,7 @@ export default function AutomationQueue() {
                   className="!py-1.5 !px-3 !text-xs"
                   onClick={() => act(item.id, "approve")}
                 >
-                  Approve & post
+                  Post now
                 </ShimmerButton>
                 <ShimmerButton
                   type="button"

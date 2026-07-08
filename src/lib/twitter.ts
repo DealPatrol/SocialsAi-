@@ -28,3 +28,53 @@ export async function postTweets(accessToken: string, tweets: string[]): Promise
 
   return replyToId!;
 }
+
+export async function followUser(
+  accessToken: string,
+  targetUserId: string
+): Promise<void> {
+  const client = new TwitterApi(accessToken).readWrite;
+  const me = await client.v2.me();
+  await client.v2.follow(me.data.id, targetUserId);
+}
+
+export async function likeTweet(
+  accessToken: string,
+  tweetId: string
+): Promise<void> {
+  const client = new TwitterApi(accessToken).readWrite;
+  const me = await client.v2.me();
+  await client.v2.like(me.data.id, tweetId);
+}
+
+export async function sendDM(
+  accessToken: string,
+  participantId: string,
+  text: string
+): Promise<string> {
+  const client = new TwitterApi(accessToken).readWrite;
+  const result = (await client.v2.sendDmToParticipant(participantId, {
+    text,
+  })) as unknown as { data?: { dm_event_id?: string }; dm_event_id?: string };
+  return result.data?.dm_event_id ?? result.dm_event_id ?? "";
+}
+
+export async function getUserProfile(
+  accessToken: string,
+  userId: string
+): Promise<{
+  id: string;
+  username?: string;
+  name?: string;
+  description?: string;
+} | null> {
+  const client = new TwitterApi(accessToken).readOnly;
+  try {
+    const { data } = await client.v2.user(userId, {
+      "user.fields": ["username", "name", "description"],
+    });
+    return data;
+  } catch {
+    return null;
+  }
+}

@@ -28,6 +28,8 @@ type RawTweet = {
 };
 
 export class XApiClient {
+  private meId: string | null = null;
+
   constructor(private accessToken: string) {}
 
   static fromEncrypted(accessTokenEnc: string): XApiClient {
@@ -97,6 +99,15 @@ export class XApiClient {
     return this.mapTweets(data, meta);
   }
 
+  async getMe(): Promise<{ id: string; username?: string; name?: string }> {
+    if (this.meId) return { id: this.meId };
+    const data = await this.request<{
+      data: { id: string; username?: string; name?: string };
+    }>("/users/me?user.fields=username,name");
+    this.meId = data.data.id;
+    return data.data;
+  }
+
   async findThreadOpportunities(
     keywords: string[],
     targetAccounts: string[]
@@ -151,9 +162,17 @@ export class XApiClient {
     return data.data.id;
   }
 
+  async likeTweet(tweetId: string): Promise<void> {
+    const me = await this.getMe();
+    await this.request(`/users/${me.id}/likes`, {
+      method: "POST",
+      body: JSON.stringify({ tweet_id: tweetId }),
+    });
+  }
+
   async followUser(targetUserId: string): Promise<void> {
-    const me = await this.request<{ data: { id: string } }>("/users/me");
-    await this.request(`/users/${me.data.id}/following`, {
+    const me = await this.getMe();
+    await this.request(`/users/${me.id}/following`, {
       method: "POST",
       body: JSON.stringify({ target_user_id: targetUserId }),
     });
@@ -200,6 +219,67 @@ export class XApiClient {
     } catch {
       return null;
     }
+  }
+
+  async getUserProfile(userId: string): Promise<{
+    id: string;
+    username: string;
+    name: string;
+    description?: string;
+    public_metrics?: {
+      followers_count?: number;
+      following_count?: number;
+    };
+  } | null> {
+    try {
+      const data = await this.request<{
+        data: {
+          id: string;
+          username: string;
+          name: string;
+          description?: string;
+          public_metrics?: {
+            followers_count?: number;
+            following_count?: number;
+          };
+        };
+      }>(`/users/${userId}?user.fields=username,name,description,public_metrics`);
+      return data.data;
+    } catch {
+      return null;
+    }
+  }
+
+  async getRecentTweetsByUser(userId: string, maxResults = 5): Promise<TweetCandidate[]> {
+    const data = await this.request<{
+      data?: RawTweet[];
+      includes?: { users?: Array<{ id: string; username: string }> };
+    }>(
+      `/users/${userId}/tweets?max_results=${Math.min(maxResults, 10)}&tweet.fields=public_metrics,author_id,conversation_id&expansions=author_id&user.fields=username`
+    );
+    return this.mapTweets(data, { tactic: "authority", isTarget: true });
+  }
+
+  async getFollowers(maxResults = 25): Promise<
+    Array<{
+      id: string;
+      username: string;
+      name: string;
+      description?: string;
+    }>
+  > {
+    const me = await this.getMe();
+    const data = await this.request<{
+      data?: Array<{
+        id: string;
+        username: string;
+        name: string;
+        description?: string;
+      }>;
+    }>(
+      `/users/${me.id}/followers?max_results=${Math.min(maxResults, 100)}&user.fields=username,name,description`
+    );
+    return data.data ?? [];
   }
 
   async findFollowCandidates(keywords: string[]): Promise<FollowCandidate[]> {
