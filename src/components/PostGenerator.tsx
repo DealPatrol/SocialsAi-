@@ -17,13 +17,22 @@ export default function PostGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
   const [twitterConnected, setTwitterConnected] = useState(false);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<"queue" | "now">("queue");
   const [posting, setPosting] = useState<number | "thread" | null>(null);
   const [posted, setPosted] = useState<number | "thread" | null>(null);
 
   useEffect(() => {
-    fetch("/api/auth/twitter/status")
+    fetch("/api/accounts")
       .then((r) => r.json())
-      .then((d) => setTwitterConnected(d.connected));
+      .then((d) => {
+        const account = d.accounts?.find(
+          (a: { platform: string }) => a.platform === "x"
+        );
+        setTwitterConnected(!!account);
+        setAccountId(account?.id ?? null);
+      })
+      .catch(() => setTwitterConnected(false));
   }, []);
 
   async function generate() {
@@ -55,20 +64,21 @@ export default function PostGenerator() {
     setTimeout(() => setCopied(null), 1500);
   }
 
-  async function postToTwitter(tweets: string[], key: number | "thread") {
+  async function queueTweets(tweets: string[], key: number | "thread") {
     setPosting(key);
     try {
-      const res = await fetch("/api/tweet", {
+      const res = await fetch("/api/automation/queue-tweet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tweets }),
+        body: JSON.stringify({ tweets, accountId, schedule }),
       });
       const data = await res.json();
       if (res.status === 401) setTwitterConnected(false);
-      if (!res.ok) throw new Error(data.error ?? "Post failed");
+      if (!res.ok) throw new Error(data.error ?? "Queue failed");
+      setPosted(key);
       setTimeout(() => setPosted(null), 3000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to post");
+      setError(e instanceof Error ? e.message : "Failed to queue");
     } finally {
       setPosting(null);
     }
@@ -183,6 +193,24 @@ export default function PostGenerator() {
         )}
       </ShimmerButton>
 
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          ["queue", "Queue for auto-posting"],
+          ["now", "Post immediately"],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setSchedule(value as "queue" | "now")}
+            className={`premium-chip text-sm ${
+              schedule === value ? "premium-chip-active" : ""
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <AnimatePresence>
         {error && (
           <motion.div
@@ -211,7 +239,7 @@ export default function PostGenerator() {
             {/* Post thread as one action */}
             {isThread && twitterConnected && (
               <button
-                onClick={() => postToTwitter(result.posts, "thread")}
+                onClick={() => queueTweets(result.posts, "thread")}
                 disabled={posting === "thread"}
                 className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
                   posted === "thread"
@@ -220,7 +248,15 @@ export default function PostGenerator() {
                 }`}
               >
                 <XIcon />
-                {posting === "thread" ? "Posting..." : posted === "thread" ? "Posted!" : "Post Thread"}
+                {posting === "thread"
+                  ? "Queueing..."
+                  : posted === "thread"
+                    ? schedule === "now"
+                      ? "Posted!"
+                      : "Queued!"
+                    : schedule === "now"
+                      ? "Post now"
+                      : "Queue thread"}
               </button>
             )}
           </div>
@@ -254,7 +290,7 @@ export default function PostGenerator() {
                 <div className="flex items-center gap-2">
                   {twitterConnected && !isThread && (
                     <button
-                      onClick={() => postToTwitter([post], idx)}
+                      onClick={() => queueTweets([post], idx)}
                       disabled={posting === idx}
                       className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded transition-all ${
                         posted === idx
@@ -263,7 +299,15 @@ export default function PostGenerator() {
                       }`}
                     >
                       <XIcon />
-                      {posting === idx ? "Posting..." : posted === idx ? "Posted!" : "Post"}
+                      {posting === idx
+                        ? "Queueing..."
+                        : posted === idx
+                          ? schedule === "now"
+                            ? "Posted!"
+                            : "Queued!"
+                          : schedule === "now"
+                            ? "Post now"
+                            : "Queue"}
                     </button>
                   )}
                   <button
@@ -288,7 +332,7 @@ export default function PostGenerator() {
               >
                 Sign in with X
               </button>{" "}
-              to post directly from here
+              to queue automated posts
             </p>
           )}
         </div>

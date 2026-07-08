@@ -15,10 +15,12 @@ interface Settings {
   followsEnabled: boolean;
   postsEnabled: boolean;
   dmsEnabled: boolean;
+  likesEnabled: boolean;
   maxRepliesPerDay: number;
   maxFollowsPerDay: number;
   maxPostsPerDay: number;
   maxDmsPerDay: number;
+  maxLikesPerDay: number;
   minMinutesBetweenActions: number;
   requireApproval: boolean;
   discloseAutomation: boolean;
@@ -26,6 +28,7 @@ interface Settings {
   toneMix: string[];
   targetKeywords: string[];
   targetAccounts: string[];
+  postingWindows: string[];
   productContext: string;
   websiteUrl: string;
 }
@@ -88,10 +91,12 @@ export default function AutomationSettingsForm({
             followsEnabled: data.settings.followsEnabled,
             postsEnabled: data.settings.postsEnabled,
             dmsEnabled: data.settings.dmsEnabled ?? false,
+            likesEnabled: data.settings.likesEnabled ?? true,
             maxRepliesPerDay: data.settings.maxRepliesPerDay,
             maxFollowsPerDay: data.settings.maxFollowsPerDay,
             maxPostsPerDay: data.settings.maxPostsPerDay,
             maxDmsPerDay: data.settings.maxDmsPerDay ?? 3,
+            maxLikesPerDay: data.settings.maxLikesPerDay ?? 3,
             minMinutesBetweenActions:
               data.settings.minMinutesBetweenActions ?? 10,
             requireApproval: data.settings.requireApproval,
@@ -102,6 +107,7 @@ export default function AutomationSettingsForm({
             targetAccounts: JSON.parse(
               data.settings.targetAccounts ?? "[]"
             ),
+            postingWindows: JSON.parse(data.settings.postingWindows ?? "[]"),
             productContext: data.settings.productContext ?? "",
             websiteUrl: data.settings.websiteUrl ?? "",
           });
@@ -163,8 +169,8 @@ export default function AutomationSettingsForm({
       </div>
 
       <p className="text-xs text-zinc-500">
-        Account safety first — presets cap rates below X abuse thresholds.
-        Approval queue on by default.
+        Account safety first — posts queue automatically, engagement is capped
+        conservatively, and no disclosure suffix is added to content.
       </p>
 
       <label className="premium-label">
@@ -206,17 +212,17 @@ export default function AutomationSettingsForm({
         <Toggle
           checked={settings.dmsEnabled}
           onChange={(v) => save({ dmsEnabled: v })}
-          label="Warm DMs (after reply)"
+          label="Delayed new-follower DMs"
+        />
+        <Toggle
+          checked={settings.likesEnabled}
+          onChange={(v) => save({ likesEnabled: v })}
+          label="Target account likes"
         />
         <Toggle
           checked={settings.requireApproval}
           onChange={(v) => save({ requireApproval: v })}
           label="Require approval"
-        />
-        <Toggle
-          checked={settings.discloseAutomation}
-          onChange={(v) => save({ discloseAutomation: v })}
-          label="Disclose automation"
         />
       </div>
 
@@ -227,6 +233,7 @@ export default function AutomationSettingsForm({
             ["Replies/day", "maxRepliesPerDay", 50],
             ["Follows/day", "maxFollowsPerDay", 25],
             ["DMs/day", "maxDmsPerDay", 5],
+            ["Likes/day", "maxLikesPerDay", 3],
           ] as const
         ).map(([label, key, max]) => (
           <label key={key} className="premium-label !text-[10px]">
@@ -294,6 +301,25 @@ export default function AutomationSettingsForm({
             })
           }
           onBlur={() => save({ targetKeywords: settings.targetKeywords })}
+          className="premium-input mt-1"
+        />
+      </label>
+
+      <label className="premium-label">
+        Posting windows (comma-separated, optional)
+        <input
+          value={settings.postingWindows.join(", ")}
+          onChange={(e) =>
+            setSettings({
+              ...settings,
+              postingWindows: e.target.value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+            })
+          }
+          onBlur={() => save({ postingWindows: settings.postingWindows })}
+          placeholder="e.g. 9am, 1pm, 5pm"
           className="premium-input mt-1"
         />
       </label>

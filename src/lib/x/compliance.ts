@@ -8,10 +8,12 @@ export const X_RATE_LIMITS = {
   maxRepliesPerDay: 50,
   maxFollowsPerDay: 25,
   maxPostsPerDay: 10,
+  maxLikesPerDay: 3,
   minMinutesBetweenActions: 5,
   maxRepliesPerHour: 8,
   maxFollowsPerHour: 5,
   maxPostsPerHour: 3,
+  maxLikesPerHour: 1,
   maxDmsPerDay: 5,
   maxDmsPerHour: 2,
 } as const;
@@ -177,6 +179,28 @@ export function validatePostAction(
   }
   if (postsThisHour >= X_RATE_LIMITS.maxPostsPerHour) {
     issues.push("Hourly post limit reached");
+  }
+
+  return {
+    allowed: issues.length === 0,
+    score: issues.length === 0 ? 100 : 0,
+    issues,
+    suggestions: [],
+  };
+}
+
+export function validateLikeAction(
+  likesToday: number,
+  likesThisHour: number,
+  maxPerDay: number
+): ComplianceResult {
+  const issues: string[] = [];
+
+  if (likesToday >= Math.min(maxPerDay, X_RATE_LIMITS.maxLikesPerDay)) {
+    issues.push("Daily like limit reached");
+  }
+  if (likesThisHour >= X_RATE_LIMITS.maxLikesPerHour) {
+    issues.push("Hourly like limit reached");
   }
 
   return {

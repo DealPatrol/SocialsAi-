@@ -5,6 +5,8 @@ import {
   automationQueue,
   automationSettings,
   engagementLogs,
+  engagementTracking,
+  postedTweets,
   socialAccounts,
 } from "@/lib/db/schema";
 import {
@@ -471,6 +473,17 @@ export async function executeQueueItem(queueId: string): Promise<boolean> {
       });
     } else if (item.type === "follow") {
       await client.followUser(payload.userId);
+      await db.insert(engagementTracking).values({
+        id: uuid(),
+        accountId: item.accountId,
+        action: "follow",
+        status: "executed",
+        targetUserId: payload.userId,
+        targetUsername: payload.username,
+        reason: payload.reason,
+        executedAt: new Date(),
+        metadata: payload,
+      }).onConflictDoNothing();
       await db.insert(engagementLogs).values({
         id: uuid(),
         accountId: item.accountId,
@@ -480,6 +493,24 @@ export async function executeQueueItem(queueId: string): Promise<boolean> {
       });
     } else if (item.type === "post") {
       const externalId = await client.postTweet(payload.postText);
+      await db.insert(postedTweets).values({
+        id: uuid(),
+        accountId: item.accountId,
+        queueId: item.id,
+        tweetId: externalId,
+        text: payload.postText,
+        postType: "post",
+        postedAt: new Date(),
+      }).onConflictDoNothing();
+      await db.insert(engagementTracking).values({
+        id: uuid(),
+        accountId: item.accountId,
+        action: "post",
+        status: "executed",
+        targetTweetId: externalId,
+        executedAt: new Date(),
+        metadata: payload,
+      }).onConflictDoNothing();
       await db.insert(engagementLogs).values({
         id: uuid(),
         accountId: item.accountId,
@@ -489,6 +520,17 @@ export async function executeQueueItem(queueId: string): Promise<boolean> {
       });
     } else if (item.type === "dm") {
       const externalId = await client.sendDm(payload.userId, payload.dmText);
+      await db.insert(engagementTracking).values({
+        id: uuid(),
+        accountId: item.accountId,
+        action: "dm",
+        status: "executed",
+        targetUserId: payload.userId,
+        targetUsername: payload.username,
+        reason: payload.warmReason,
+        executedAt: new Date(),
+        metadata: { ...payload, externalId },
+      }).onConflictDoNothing();
       await db.insert(engagementLogs).values({
         id: uuid(),
         accountId: item.accountId,

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAllAutomations } from "@/lib/automation/engine";
+import {
+  postNextQueuedTweet,
+  runEngagementAutomation,
+  sendScheduledDms,
+} from "@/lib/automation";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -9,6 +14,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const results = await runAllAutomations();
-  return NextResponse.json({ ok: true, results, ranAt: new Date().toISOString() });
+  const [queuedPost, generatedContent, engagement, dms] = await Promise.all([
+    postNextQueuedTweet(),
+    runAllAutomations(),
+    runEngagementAutomation(),
+    sendScheduledDms(),
+  ]);
+  return NextResponse.json({
+    ok: true,
+    queuedPost,
+    generatedContent,
+    engagement,
+    dms,
+    ranAt: new Date().toISOString(),
+  });
 }
