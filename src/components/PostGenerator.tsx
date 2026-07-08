@@ -115,8 +115,9 @@ export default function PostGenerator() {
 
       {/* Generate Tab */}
       {activeTab === "generate" && (
-      {/* Format selector */}
       <div>
+        {/* Format selector */}
+        <div>
         <label className="block text-sm font-semibold text-gray-300 mb-2">
           Post Format
         </label>
@@ -136,10 +137,10 @@ export default function PostGenerator() {
             </button>
           ))}
         </div>
-      </div>
+        </div>
 
-      {/* Content pillar */}
-      <div>
+        {/* Content pillar */}
+        <div>
         <label className="block text-sm font-semibold text-gray-300 mb-2">
           Content Pillar
         </label>
@@ -159,11 +160,11 @@ export default function PostGenerator() {
             </button>
           ))}
         </div>
-      </div>
+        </div>
 
-      {/* Reply-to tweet input */}
-      {isReply && (
-        <div>
+        {/* Reply-to tweet input */}
+        {isReply && (
+          <div>
           <label className="block text-sm font-semibold text-gray-300 mb-2">
             Tweet to Reply To
           </label>
@@ -208,11 +209,11 @@ export default function PostGenerator() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
           </div>
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Context */}
-      <div>
+        {/* Context */}
+        <div>
         <label className="block text-sm font-semibold text-gray-300 mb-2">
           {isReply ? "Your Angle / What to Draw From" : "What Do You Want to Share?"}
         </label>
@@ -227,38 +228,38 @@ export default function PostGenerator() {
           }
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
         />
-      </div>
+        </div>
 
-      {/* Generate button */}
-      <button
+        {/* Generate button */}
+        <button
         onClick={generate}
         disabled={loading || !context.trim()}
         className="w-full py-3 rounded-lg font-semibold text-sm transition-all bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? "Generating..." : "Generate Posts"}
-      </button>
+        </button>
 
-      {/* Error */}
-      {error && (
-        <div className="p-4 rounded-lg bg-red-900/30 border border-red-700 text-red-300 text-sm">
-          {error}
-        </div>
-      )}
+        {/* Error */}
+        {error && (
+          <div className="p-4 rounded-lg bg-red-900/30 border border-red-700 text-red-300 text-sm">
+            {error}
+          </div>
+        )}
 
-      {/* Post success/error */}
-      {postSuccess && (
-        <div className="p-4 rounded-lg bg-green-900/30 border border-green-700 text-green-300 text-sm">
-          ✓ {postSuccess}
-        </div>
-      )}
-      {postError && (
-        <div className="p-4 rounded-lg bg-red-900/30 border border-red-700 text-red-300 text-sm">
-          {postError}
-        </div>
-      )}
+        {/* Post success/error */}
+        {postSuccess && (
+          <div className="p-4 rounded-lg bg-green-900/30 border border-green-700 text-green-300 text-sm">
+            ✓ {postSuccess}
+          </div>
+        )}
+        {postError && (
+          <div className="p-4 rounded-lg bg-red-900/30 border border-red-700 text-red-300 text-sm">
+            {postError}
+          </div>
+        )}
 
-      {/* Results */}
-      {result && (
+        {/* Results */}
+        {result && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -315,7 +316,7 @@ export default function PostGenerator() {
             </div>
           ))}
         </div>
-      )}
+        )}
       )}
 
       {/* Automation Settings Tab */}
