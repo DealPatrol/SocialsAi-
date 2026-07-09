@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -13,16 +14,18 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const userId = session.user.id || session.user.email;
+    const userId = session.user.email || "unknown";
 
     // Get or create settings
-    let { data: settings, error } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("automation_settings")
       .select("*")
       .eq("user_id", userId)
       .single();
 
-    if (error || !settings) {
+    let settings = data;
+
+    if (fetchError || !settings) {
       // Create default settings
       const { data: newSettings, error: insertError } = await supabase
         .from("automation_settings")
@@ -57,9 +60,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(request: Request) {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -69,7 +72,7 @@ export async function PUT(request: NextRequest) {
 
     const updates = await request.json();
     const supabase = await createClient();
-    const userId = session.user.id || session.user.email;
+    const userId = session.user.email || "unknown";
 
     const { data, error } = await supabase
       .from("automation_settings")

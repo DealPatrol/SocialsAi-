@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { text } = await request.json();
+    const { text } = await req.json();
     if (!text || !text.trim()) {
       return NextResponse.json(
         { error: "Tweet content required" },
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const userId = session.user.id || session.user.email;
+    const userId = session.user.email || "unknown";
 
     // Add tweet to queue for immediate posting
     const { data, error } = await supabase
@@ -56,9 +57,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const userId = session.user.id || session.user.email;
+    const userId = session.user.email || "unknown";
 
     const { data, error } = await supabase
       .from("automation_queue")

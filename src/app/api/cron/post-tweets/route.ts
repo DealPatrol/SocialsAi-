@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           posted++;
         } else {
           // Failed
-          const error = result as any;
+          const error = result as { message?: string };
           await supabase
             .from("automation_queue")
             .update({

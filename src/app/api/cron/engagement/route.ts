@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    let stats = { follows: 0, likes: 0, dms: 0, errors: 0 };
+    const stats = { follows: 0, likes: 0, dms: 0, errors: 0 };
 
     // Process each user
     for (const user of users) {

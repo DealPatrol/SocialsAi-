@@ -25,23 +25,25 @@ export default function AutomationSettings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSettings();
-  }, [session]);
-
-  async function fetchSettings() {
+  const fetchSettings = async () => {
     if (!session?.user) return;
 
     try {
       const res = await fetch("/api/automation/settings");
       const data = await res.json();
       setSettings(data.settings);
-    } catch (err) {
+    } catch {
       setError("Failed to load settings");
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, [session]);
+
+
 
   async function saveSettings() {
     if (!settings) return;
@@ -63,7 +65,7 @@ export default function AutomationSettings() {
       setSettings(data.settings);
       setSuccess("Settings saved successfully!");
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
+    } catch {
       setError("Failed to save settings");
     } finally {
       setSaving(false);
