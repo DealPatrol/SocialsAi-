@@ -64,16 +64,26 @@ export async function PATCH(req: NextRequest) {
 
   const allowed = [
     "mode",
+    "growthPreset",
     "repliesEnabled",
+    "threadRepliesEnabled",
     "followsEnabled",
     "postsEnabled",
+    "dmsEnabled",
+    "likesEnabled",
     "maxRepliesPerDay",
     "maxFollowsPerDay",
     "maxPostsPerDay",
+    "maxDmsPerDay",
+    "maxLikesPerDay",
     "minMinutesBetweenActions",
     "toneMix",
     "productContext",
     "targetKeywords",
+    "targetAccounts",
+    "postingWindows",
+    "dmTemplateId",
+    "websiteUrl",
     "requireApproval",
     "discloseAutomation",
   ] as const;
@@ -81,7 +91,12 @@ export async function PATCH(req: NextRequest) {
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   for (const key of allowed) {
     if (updates[key] !== undefined) {
-      if (key === "toneMix" || key === "targetKeywords") {
+      if (
+        key === "toneMix" ||
+        key === "targetKeywords" ||
+        key === "targetAccounts" ||
+        key === "postingWindows"
+      ) {
         patch[key] =
           typeof updates[key] === "string"
             ? updates[key]

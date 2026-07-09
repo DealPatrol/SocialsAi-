@@ -10,6 +10,7 @@ interface QueueItem {
   status: string;
   engagementScore: number | null;
   payload: Record<string, string | number>;
+  scheduledAt?: string | null;
   createdAt: string;
 }
 
@@ -17,6 +18,7 @@ const typeColors: Record<string, string> = {
   post: "text-fuchsia-300 border-fuchsia-500/30 bg-fuchsia-500/10",
   reply: "text-cyan-300 border-cyan-500/30 bg-cyan-500/10",
   follow: "text-violet-300 border-violet-500/30 bg-violet-500/10",
+  dm: "text-amber-300 border-amber-500/30 bg-amber-500/10",
 };
 
 export default function AutomationQueue() {
@@ -86,6 +88,11 @@ export default function AutomationQueue() {
               >
                 {item.type} · {item.status}
               </span>
+              {item.scheduledAt && (
+                <span className="text-xs text-zinc-500">
+                  due {new Date(item.scheduledAt).toLocaleString()}
+                </span>
+              )}
               {item.engagementScore != null && (
                 <span className="text-xs font-mono text-emerald-400">
                   {item.engagementScore}
@@ -117,6 +124,17 @@ export default function AutomationQueue() {
                 {String(item.payload.reason)}
               </p>
             )}
+            {item.type === "dm" && (
+              <div className="text-sm space-y-2">
+                <p className="text-zinc-500">DM → @{String(item.payload.username)}</p>
+                <p className="text-zinc-100">{String(item.payload.dmText)}</p>
+                {item.payload.warmReason && (
+                  <p className="text-xs text-zinc-500">
+                    {String(item.payload.warmReason)}
+                  </p>
+                )}
+              </div>
+            )}
             {item.status === "pending" && (
               <div className="flex gap-2 mt-4">
                 <ShimmerButton
@@ -124,7 +142,7 @@ export default function AutomationQueue() {
                   className="!py-1.5 !px-3 !text-xs"
                   onClick={() => act(item.id, "approve")}
                 >
-                  Approve & post
+                  Post now
                 </ShimmerButton>
                 <ShimmerButton
                   type="button"

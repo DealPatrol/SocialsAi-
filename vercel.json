@@ -1,8 +1,16 @@
 {
   "crons": [
     {
-      "path": "/api/cron/automation",
-      "schedule": "0 * * * *"
+      "path": "/api/cron/post-tweet",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/engage",
+      "schedule": "17 */6 * * *"
+    },
+    {
+      "path": "/api/cron/send-dm",
+      "schedule": "43 */6 * * *"
     }
   ]
 }

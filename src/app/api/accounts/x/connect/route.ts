@@ -23,7 +23,11 @@ export async function GET() {
 
   const { verifier, challenge } = generatePkce();
   const state = Buffer.from(
-    JSON.stringify({ userId: session.user.id, nonce: randomUUID() })
+    JSON.stringify({
+      intent: "connect",
+      userId: session.user.id,
+      nonce: randomUUID(),
+    })
   ).toString("base64url");
 
   const cookieStore = await cookies();

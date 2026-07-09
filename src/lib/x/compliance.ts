@@ -8,11 +8,25 @@ export const X_RATE_LIMITS = {
   maxRepliesPerDay: 50,
   maxFollowsPerDay: 25,
   maxPostsPerDay: 10,
+  maxLikesPerDay: 3,
   minMinutesBetweenActions: 5,
   maxRepliesPerHour: 8,
   maxFollowsPerHour: 5,
   maxPostsPerHour: 3,
+  maxLikesPerHour: 1,
+  maxDmsPerDay: 5,
+  maxDmsPerHour: 2,
 } as const;
+
+const DM_SPAM_PATTERNS = [
+  /check out my/i,
+  /limited time/i,
+  /act now/i,
+  /click here/i,
+  /free trial/i,
+  /hey there!/i,
+  /hope this finds you/i,
+];
 
 const SPAM_PATTERNS = [
   /follow\s+me\s+back/i,
@@ -173,6 +187,98 @@ export function validatePostAction(
     issues,
     suggestions: [],
   };
+}
+
+export function validateLikeAction(
+  likesToday: number,
+  likesThisHour: number,
+  maxPerDay: number
+): ComplianceResult {
+  const issues: string[] = [];
+
+  if (likesToday >= Math.min(maxPerDay, X_RATE_LIMITS.maxLikesPerDay)) {
+    issues.push("Daily like limit reached");
+  }
+  if (likesThisHour >= X_RATE_LIMITS.maxLikesPerHour) {
+    issues.push("Hourly like limit reached");
+  }
+
+  return {
+    allowed: issues.length === 0,
+    score: issues.length === 0 ? 100 : 0,
+    issues,
+    suggestions: [],
+  };
+}
+
+export function validateDmContent(text: string): ComplianceResult {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+
+  if (text.length > 280) issues.push("DM too long");
+  if (text.length < 30) issues.push("DM too short — must feel personal");
+
+  for (const pattern of DM_SPAM_PATTERNS) {
+    if (pattern.test(text)) {
+      issues.push("Sounds like automated outreach");
+      break;
+    }
+  }
+
+  for (const pattern of SPAM_PATTERNS) {
+    if (pattern.test(text)) {
+      issues.push("Contains spam-like phrasing");
+      break;
+    }
+  }
+
+  const linkCount = (text.match(/https?:\/\//g) ?? []).length;
+  if (linkCount > 1) issues.push("Too many links in DM");
+
+  const score = Math.max(0, 100 - issues.length * 30);
+
+  return { allowed: issues.length === 0, score, issues, suggestions };
+}
+
+export function validateDmAction(
+  dmsToday: number,
+  dmsThisHour: number,
+  maxPerDay: number
+): ComplianceResult {
+  const issues: string[] = [];
+  if (dmsToday >= Math.min(maxPerDay, X_RATE_LIMITS.maxDmsPerDay)) {
+    issues.push("Daily DM limit reached");
+  }
+  if (dmsThisHour >= X_RATE_LIMITS.maxDmsPerHour) {
+    issues.push("Hourly DM limit reached");
+  }
+  return {
+    allowed: issues.length === 0,
+    score: issues.length === 0 ? 100 : 0,
+    issues,
+    suggestions: [],
+  };
+}
+
+export async function checkActionCooldown(
+  accountId: string,
+  minMinutes: number,
+  getLastActionAt: (id: string) => Promise<Date | null>
+): Promise<ComplianceResult> {
+  const last = await getLastActionAt(accountId);
+  if (!last) {
+    return { allowed: true, score: 100, issues: [], suggestions: [] };
+  }
+  const elapsed = (Date.now() - last.getTime()) / 60_000;
+  if (elapsed < minMinutes) {
+    return {
+      allowed: false,
+      score: 0,
+      issues: [`Wait ${Math.ceil(minMinutes - elapsed)} more minutes between actions`],
+      suggestions: [],
+    };
+  }
+  return { allowed: true, score: 100, issues: [], suggestions: [] };
 }
 
 export function validateReplyAction(
