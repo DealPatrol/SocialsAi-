@@ -96,12 +96,21 @@ export async function upsertUserAndAccountFromX(
         ? encrypt(tokens.refresh_token)
         : null,
       tokenExpiresAt: expiresAt,
-      automationEnabled: false,
+      automationEnabled: true,
     });
 
     await db.insert(automationSettings).values({
       id: uuid(),
       accountId,
+      mode: "auto",
+      requireApproval: false,
+      postsEnabled: true,
+      repliesEnabled: true,
+      followsEnabled: true,
+      maxPostsPerDay: 5,
+      maxRepliesPerDay: 25,
+      maxFollowsPerDay: 15,
+      minMinutesBetweenActions: 8,
       productContext: `${PRODUCT_CONTEXT.name}: ${PRODUCT_CONTEXT.description}`,
       targetAccounts: JSON.stringify(defaultAccounts),
     });

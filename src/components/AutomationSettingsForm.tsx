@@ -133,6 +133,35 @@ export default function AutomationSettingsForm({
     setSettings((s) => (s ? { ...s, ...patch } : s));
   }
 
+  async function enableFullAuto() {
+    setSaving(true);
+    setMessage(null);
+    const res = await fetch("/api/automation/full-auto", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setMessage("Failed to enable full auto");
+      return;
+    }
+    setSettings((s) =>
+      s
+        ? {
+            ...s,
+            automationEnabled: true,
+            mode: "auto",
+            requireApproval: false,
+            postsEnabled: true,
+            repliesEnabled: true,
+            followsEnabled: true,
+          }
+        : s
+    );
+    setMessage("Full auto enabled — posting, replies, and follows are live");
+  }
+
   async function runNow(demo = false) {
     const res = await fetch("/api/automation/run", {
       method: "POST",
@@ -172,6 +201,21 @@ export default function AutomationSettingsForm({
         Account safety first — posts queue automatically, engagement is capped
         conservatively, and no disclosure suffix is added to content.
       </p>
+
+      {(!settings.automationEnabled ||
+        settings.requireApproval ||
+        settings.mode !== "auto") && (
+        <motion.button
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          type="button"
+          disabled={saving}
+          onClick={enableFullAuto}
+          className="w-full py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-cyan-500 to-violet-600 text-white hover:shadow-[0_0_32px_-4px_rgba(34,211,238,0.6)] transition-all disabled:opacity-50"
+        >
+          Enable Full Auto
+        </motion.button>
+      )}
 
       <label className="premium-label">
         Growth preset
