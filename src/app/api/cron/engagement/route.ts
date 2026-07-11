@@ -47,22 +47,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Use app-level OAuth token for automation
+    const accessToken = process.env.TWITTER_OAUTH_ACCESS_TOKEN;
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: "Twitter OAuth token not configured" },
+        { status: 500 }
+      );
+    }
+
     const stats = { follows: 0, likes: 0, dms: 0, errors: 0 };
 
-    // Process each user
+    // Process automation for each user
     for (const user of users) {
       try {
-        // Get user's access token
-        const { data: authData } = await supabase
-          .from("auth_sessions")
-          .select("access_token")
-          .eq("user_id", user.user_id)
-          .single();
-
-        if (!authData?.access_token) {
-          stats.errors++;
-          continue;
-        }
 
         // Get target accounts
         const { data: targetAccounts } = await supabase
@@ -104,7 +102,7 @@ export async function POST(request: NextRequest) {
             targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
           const followResult = await followUser(
             randomTarget.twitter_id,
-            authData.access_token
+            accessToken
           );
 
           if (followResult.success) {
@@ -121,7 +119,7 @@ export async function POST(request: NextRequest) {
             targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
           const likeResult = await likeTweet(
             randomTarget.twitter_id,
-            authData.access_token
+            accessToken
           );
 
           if (likeResult.success) {
@@ -149,7 +147,7 @@ export async function POST(request: NextRequest) {
             // Get user profile for personalization
             const profile = await getUserProfile(
               randomTarget.twitter_id,
-              authData.access_token
+              accessToken
             );
 
             let message = templates[0].template;
@@ -165,7 +163,7 @@ export async function POST(request: NextRequest) {
             const dmResult = await sendDM(
               randomTarget.twitter_id,
               message,
-              authData.access_token
+              accessToken
             );
 
             if (dmResult.success) {

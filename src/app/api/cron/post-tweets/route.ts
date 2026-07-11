@@ -45,38 +45,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Use app-level OAuth tokens for automation
+    const accessToken = process.env.TWITTER_OAUTH_ACCESS_TOKEN;
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: "Twitter OAuth token not configured" },
+        { status: 500 }
+      );
+    }
+
     let posted = 0;
     let failed = 0;
-
-    // Process each tweet
+    
+    // Post each tweet
     for (const tweet of queuedTweets) {
-      try {
-        // Get user's access token from auth table
-        const { data: authData, error: authError } = await supabase
-          .from("auth_sessions")
-          .select("access_token")
-          .eq("user_id", tweet.user_id)
-          .single();
-
-        if (authError || !authData?.access_token) {
-          // Mark as failed - no access token
-          await supabase
-            .from("automation_queue")
-            .update({
-              status: "failed",
-              error_message: "User access token expired or not found",
-            })
-            .eq("id", tweet.id);
-
-          failed++;
-          continue;
-        }
-
-        // Post the tweet
-        const result = await postTweet({
-          text: tweet.tweet_content,
-          accessToken: authData.access_token,
-        });
+      const result = await postTweet({
+        text: tweet.text,
+        accessToken: accessToken, // Use app-level token for automation
+        reply_to_tweet_id: tweet.reply_to_tweet_id,
+      });
 
         if ("data" in result && result.data?.id) {
           // Success
