@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
   if (action === "approve" || action === "execute") {
     await db
       .update(automationQueue)
-      .set({ status: "approved" })
+      .set({ status: "approved", errorMessage: null })
       .where(eq(automationQueue.id, queueId));
 
     const ok = await executeQueueItem(queueId);
