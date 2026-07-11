@@ -10,6 +10,7 @@ interface QueueItem {
   status: string;
   engagementScore: number | null;
   payload: Record<string, string | number>;
+  errorMessage?: string | null;
   scheduledAt?: string | null;
   createdAt: string;
 }
@@ -37,7 +38,7 @@ export default function AutomationQueue() {
     load();
   }, [load]);
 
-  async function act(id: string, action: "approve" | "reject") {
+  async function act(id: string, action: "approve" | "reject" | "execute") {
     await fetch("/api/automation/queue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -135,23 +136,37 @@ export default function AutomationQueue() {
                 )}
               </div>
             )}
-            {item.status === "pending" && (
+            {item.errorMessage && (
+              <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-300">
+                  X API error
+                </p>
+                <p className="mt-1 break-words text-xs text-red-200">
+                  {item.errorMessage}
+                </p>
+              </div>
+            )}
+            {(item.status === "pending" || item.status === "failed") && (
               <div className="flex gap-2 mt-4">
                 <ShimmerButton
                   type="button"
                   className="!py-1.5 !px-3 !text-xs"
-                  onClick={() => act(item.id, "approve")}
+                  onClick={() =>
+                    act(item.id, item.status === "failed" ? "execute" : "approve")
+                  }
                 >
-                  Post now
+                  {item.status === "failed" ? "Retry post" : "Post now"}
                 </ShimmerButton>
-                <ShimmerButton
-                  type="button"
-                  variant="ghost"
-                  className="!py-1.5 !px-3 !text-xs"
-                  onClick={() => act(item.id, "reject")}
-                >
-                  Reject
-                </ShimmerButton>
+                {item.status === "pending" && (
+                  <ShimmerButton
+                    type="button"
+                    variant="ghost"
+                    className="!py-1.5 !px-3 !text-xs"
+                    onClick={() => act(item.id, "reject")}
+                  >
+                    Reject
+                  </ShimmerButton>
+                )}
               </div>
             )}
           </motion.div>
