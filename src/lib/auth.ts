@@ -1,4 +1,4 @@
-import type { DefaultSession, NextAuthOptions } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import Twitter from "next-auth/providers/twitter";
 
 // Use actual env vars if available, otherwise use dummy values for build time
@@ -29,24 +29,13 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
-      }
+    async session({ session }) {
       // Access token is kept server-side in the JWT only and is not
       // forwarded to the browser via the session object.
       return session;
     },
   },
 };
-
-declare module "next-auth" {
-  interface Session {
-    user: DefaultSession["user"] & {
-      id: string;
-    };
-  }
-}
 
 // Extend NextAuth JWT type to include OAuth tokens
 declare module "next-auth/jwt" {

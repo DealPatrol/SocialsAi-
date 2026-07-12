@@ -1,128 +1,103 @@
-import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
-import { db, ensureDb } from "@/lib/db";
-import { automationSettings, socialAccounts } from "@/lib/db/schema";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { createClient } from "@/utils/supabase/server";
 
-async function assertAccountOwnership(accountId: string, userId: string) {
-  const [account] = await db
-    .select()
-    .from(socialAccounts)
-    .where(eq(socialAccounts.id, accountId));
-  if (!account || account.userId !== userId) {
-    return null;
-  }
-  return account;
-}
-
-export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const accountId = req.nextUrl.searchParams.get("accountId");
-  if (!accountId) {
-    return NextResponse.json({ error: "accountId required" }, { status: 400 });
-  }
-
-  await ensureDb();
-  const account = await assertAccountOwnership(accountId, session.user.id);
-  if (!account) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const [settings] = await db
-    .select()
-    .from(automationSettings)
-    .where(eq(automationSettings.accountId, accountId));
-
-  return NextResponse.json({
-    settings,
-    automationEnabled: account.automationEnabled,
-  });
-}
-
-export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = await req.json();
-  const { accountId, ...updates } = body;
-
-  if (!accountId) {
-    return NextResponse.json({ error: "accountId required" }, { status: 400 });
-  }
-
-  await ensureDb();
-  const account = await assertAccountOwnership(accountId, session.user.id);
-  if (!account) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const allowed = [
-    "mode",
-    "growthPreset",
-    "repliesEnabled",
-    "threadRepliesEnabled",
-    "followsEnabled",
-    "postsEnabled",
-    "dmsEnabled",
-    "likesEnabled",
-    "maxRepliesPerDay",
-    "maxFollowsPerDay",
-    "maxPostsPerDay",
-    "maxDmsPerDay",
-    "maxLikesPerDay",
-    "minMinutesBetweenActions",
-    "toneMix",
-    "productContext",
-    "targetKeywords",
-    "targetAccounts",
-    "postingWindows",
-    "dmTemplateId",
-    "websiteUrl",
-    "requireApproval",
-    "discloseAutomation",
-  ] as const;
-
-  const patch: Record<string, unknown> = { updatedAt: new Date() };
-  for (const key of allowed) {
-    if (updates[key] !== undefined) {
-      if (
-        key === "toneMix" ||
-        key === "targetKeywords" ||
-        key === "targetAccounts" ||
-        key === "postingWindows"
-      ) {
-        patch[key] =
-          typeof updates[key] === "string"
-            ? updates[key]
-            : JSON.stringify(updates[key]);
-      } else {
-        patch[key] = updates[key];
-      }
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
+
+    const supabase = await createClient();
+    const userId = session.user.email || "unknown";
+
+    // Get or create settings
+    const { data, error: fetchError } = await supabase
+      .from("automation_settings")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    let settings = data;
+
+    if (fetchError || !settings) {
+      // Create default settings
+      const { data: newSettings, error: insertError } = await supabase
+        .from("automation_settings")
+        .insert({
+          user_id: userId,
+          auto_post_enabled: false,
+          auto_follow_enabled: false,
+          auto_like_enabled: false,
+          auto_dm_enabled: false,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("[v0] Settings creation error:", insertError);
+        return NextResponse.json(
+          { error: "Failed to create settings" },
+          { status: 500 }
+        );
+      }
+
+      settings = newSettings;
+    }
+
+    return NextResponse.json({ settings });
+  } catch (error) {
+    console.error("[v0] Settings API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
+}
 
-  if (updates.automationEnabled !== undefined) {
-    await db
-      .update(socialAccounts)
-      .set({ automationEnabled: !!updates.automationEnabled })
-      .where(eq(socialAccounts.id, accountId));
+export async function PUT(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const updates = await request.json();
+    const supabase = await createClient();
+    const userId = session.user.email || "unknown";
+
+    const { data, error } = await supabase
+      .from("automation_settings")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[v0] Settings update error:", error);
+      return NextResponse.json(
+        { error: "Failed to update settings" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ settings: data });
+  } catch (error) {
+    console.error("[v0] Settings API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  await db
-    .update(automationSettings)
-    .set(patch)
-    .where(eq(automationSettings.accountId, accountId));
-
-  const [settings] = await db
-    .select()
-    .from(automationSettings)
-    .where(eq(automationSettings.accountId, accountId));
-
-  return NextResponse.json({ settings });
 }

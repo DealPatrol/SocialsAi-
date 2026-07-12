@@ -41,7 +41,7 @@ export default function AutomationSettings() {
 
   useEffect(() => {
     fetchSettings();
-  }, [session]);
+  }, [session, fetchSettings]);
 
 
 
