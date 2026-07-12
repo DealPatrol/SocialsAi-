@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 
 interface AutomationSettings {
@@ -25,7 +25,7 @@ export default function AutomationSettings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     if (!session?.user) return;
 
     try {
@@ -37,11 +37,11 @@ export default function AutomationSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
     fetchSettings();
-  }, [session, fetchSettings]);
+  }, [fetchSettings]);
 
 
 
