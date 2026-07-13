@@ -89,7 +89,62 @@ CREATE POLICY "Users can see own target accounts"
   ON target_accounts FOR SELECT
   USING (auth.uid()::text = user_id);
 
+-- Niche Keywords: Keywords to search for users in your niche
+CREATE TABLE IF NOT EXISTS niche_keywords (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  keyword TEXT NOT NULL, -- e.g., "founder", "saas", "startup"
+  search_frequency TEXT DEFAULT 'daily', -- daily, twice_daily
+  last_searched TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, keyword)
+);
+
+-- User Discovery Candidates: Users discovered matching niche keywords
+CREATE TABLE IF NOT EXISTS user_discovery_candidates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL, -- Your user ID
+  target_twitter_id TEXT NOT NULL,
+  target_handle TEXT NOT NULL,
+  target_name TEXT,
+  target_bio TEXT,
+  followers_count INTEGER,
+  engagement_score INTEGER DEFAULT 0, -- 0-100 based on engagement potential
+  keyword_matched TEXT, -- Which keyword matched
+  discovered_at TIMESTAMP DEFAULT NOW(),
+  followed_at TIMESTAMP,
+  engaged_at TIMESTAMP,
+  status TEXT DEFAULT 'discovered', -- discovered, followed, engaged, skipped
+  reason_skipped TEXT,
+  CONSTRAINT valid_status CHECK (status IN ('discovered', 'followed', 'engaged', 'skipped')),
+  UNIQUE(user_id, target_twitter_id)
+);
+
+-- Enable RLS
+ALTER TABLE niche_keywords ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_discovery_candidates ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can see own keywords"
+  ON niche_keywords FOR SELECT
+  USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can manage own keywords"
+  ON niche_keywords FOR INSERT
+  WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can see own candidates"
+  ON user_discovery_candidates FOR SELECT
+  USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update own candidates"
+  ON user_discovery_candidates FOR UPDATE
+  USING (auth.uid()::text = user_id);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS automation_queue_user_status ON automation_queue(user_id, status);
 CREATE INDEX IF NOT EXISTS engagement_history_user_target ON engagement_history(user_id, target_user_id, action_type);
 CREATE INDEX IF NOT EXISTS automation_settings_user ON automation_settings(user_id);
+CREATE INDEX IF NOT EXISTS niche_keywords_user ON niche_keywords(user_id);
+CREATE INDEX IF NOT EXISTS user_discovery_candidates_user_status ON user_discovery_candidates(user_id, status);
+CREATE INDEX IF NOT EXISTS user_discovery_candidates_score ON user_discovery_candidates(engagement_score DESC);

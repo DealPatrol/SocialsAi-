@@ -61,14 +61,34 @@ export async function POST(request: NextRequest) {
     // Process automation for each user
     for (const user of users) {
       try {
-
-        // Get target accounts
+        // Get target accounts (manual targets)
         const { data: targetAccounts } = await supabase
           .from("target_accounts")
           .select("twitter_id, account_handle")
           .eq("user_id", user.user_id);
 
-        if (!targetAccounts || targetAccounts.length === 0) {
+        // Get discovered candidates with high engagement scores (70+)
+        const { data: discoveredUsers } = await supabase
+          .from("user_discovery_candidates")
+          .select("target_twitter_id, target_handle")
+          .eq("user_id", user.user_id)
+          .eq("status", "discovered")
+          .gte("engagement_score", 70)
+          .limit(5); // Prioritize high-scoring candidates
+
+        // Combine both target sources
+        const allTargets = [
+          ...(targetAccounts || []).map((t) => ({
+            twitter_id: t.twitter_id,
+            account_handle: t.account_handle,
+          })),
+          ...(discoveredUsers || []).map((d) => ({
+            twitter_id: d.target_twitter_id,
+            account_handle: d.target_handle,
+          })),
+        ];
+
+        if (allTargets.length === 0) {
           continue;
         }
 
@@ -99,7 +119,7 @@ export async function POST(request: NextRequest) {
         if (action < 0.4 && followsCount < maxFollows) {
           // Do a follow
           const randomTarget =
-            targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
+            allTargets[Math.floor(Math.random() * allTargets.length)];
           const followResult = await followUser(
             randomTarget.twitter_id,
             accessToken
@@ -116,7 +136,7 @@ export async function POST(request: NextRequest) {
         } else if (action < 0.8 && likesCount < maxLikes) {
           // Do a like
           const randomTarget =
-            targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
+            allTargets[Math.floor(Math.random() * allTargets.length)];
           const likeResult = await likeTweet(
             randomTarget.twitter_id,
             accessToken
@@ -134,7 +154,7 @@ export async function POST(request: NextRequest) {
         } else if (dmsCount < maxDMs) {
           // Do a DM
           const randomTarget =
-            targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
+            allTargets[Math.floor(Math.random() * allTargets.length)];
 
           // Get DM template
           const { data: templates } = await supabase

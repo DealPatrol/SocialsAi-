@@ -6,10 +6,11 @@ import { CONTENT_PILLARS, POST_FORMATS, TARGET_ACCOUNTS } from "@/lib/strategy";
 import type { PillarId, FormatId } from "@/lib/strategy";
 import type { GenerateResponse } from "@/app/api/generate/route";
 import AutomationSettings from "./AutomationSettings";
+import SmartDiscovery from "./SmartDiscovery";
 
 export default function PostGenerator() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"generate" | "automation">("generate");
+  const [activeTab, setActiveTab] = useState<"generate" | "automation" | "discovery">("generate");
   const [format, setFormat] = useState<FormatId>("single-tweet");
   const [pillarId, setPillarId] = useState<PillarId>("build-in-public");
   const [context, setContext] = useState("");
@@ -110,6 +111,16 @@ export default function PostGenerator() {
           }`}
         >
           Automation Settings
+        </button>
+        <button
+          onClick={() => setActiveTab("discovery")}
+          className={`pb-3 px-2 font-medium text-sm transition-colors ${
+            activeTab === "discovery"
+              ? "text-blue-400 border-b-2 border-blue-400"
+              : "text-gray-400 hover:text-gray-300"
+          }`}
+        >
+          Smart Discovery
         </button>
       </div>
 
@@ -320,6 +331,9 @@ export default function PostGenerator() {
 
       {/* Automation Settings Tab */}
       {activeTab === "automation" && <AutomationSettings />}
+
+      {/* Smart Discovery Tab */}
+      {activeTab === "discovery" && <SmartDiscovery />}
     </div>
   );
 }

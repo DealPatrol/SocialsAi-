@@ -366,3 +366,150 @@ export function personalizeDMTemplate(
   );
   return message;
 }
+
+/**
+ * Search for users matching a keyword (for niche discovery)
+ */
+export async function searchUsersInNiche(
+  keyword: string,
+  accessToken: string,
+  maxResults: number = 10
+): Promise<
+  | Array<{
+      id: string;
+      name: string;
+      username: string;
+      bio?: string;
+      followers_count: number;
+      verified: boolean;
+    }>
+  | { error: string }
+> {
+  try {
+    // Search for tweets with the keyword, then get the authors
+    const query = `${keyword} -is:retweet has:engagement lang:en`;
+    const response = await fetch(
+      `${TWITTER_API_BASE}/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=${Math.min(maxResults, 100)}&tweet.fields=public_metrics&expansions=author_id&user.fields=description,public_metrics,verified`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return { error: "Failed to search users" };
+    }
+
+    const data = await response.json();
+    const users = (data.includes?.users || []).map(
+      (user: {
+        id: string;
+        name: string;
+        username: string;
+        description?: string;
+        public_metrics?: { followers_count: number };
+        verified: boolean;
+      }) => ({
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        bio: user.description,
+        followers_count: user.public_metrics?.followers_count || 0,
+        verified: user.verified,
+      })
+    );
+
+    return users;
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Calculate engagement score for a discovered user (0-100)
+ */
+export function calculateEngagementScore(userData: {
+  followers_count: number;
+  verified?: boolean;
+  bio?: string;
+  recentEngagement?: number; // engagement rate 0-100
+}): number {
+  let score = 0;
+
+  // Followers score (max 30 points)
+  if (userData.followers_count > 10000) score += 30;
+  else if (userData.followers_count > 5000) score += 25;
+  else if (userData.followers_count > 1000) score += 20;
+  else if (userData.followers_count > 100) score += 10;
+  else score += 5;
+
+  // Verified badge (max 20 points)
+  if (userData.verified) score += 20;
+
+  // Bio relevance (max 20 points) - if they have a filled bio
+  if (userData.bio && userData.bio.length > 20) score += 20;
+
+  // Recent engagement rate (max 30 points)
+  if (userData.recentEngagement) {
+    score += Math.min(userData.recentEngagement * 0.3, 30);
+  }
+
+  return Math.min(score, 100);
+}
+
+/**
+ * Get user's followers to find potential followers
+ */
+export async function getUserFollowers(
+  userId: string,
+  accessToken: string,
+  maxResults: number = 50
+): Promise<
+  | Array<{
+      id: string;
+      name: string;
+      username: string;
+      bio?: string;
+      followers_count: number;
+    }>
+  | { error: string }
+> {
+  try {
+    const response = await fetch(
+      `${TWITTER_API_BASE}/users/${userId}/followers?max_results=${Math.min(maxResults, 100)}&user.fields=description,public_metrics`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return { error: "Failed to fetch followers" };
+    }
+
+    const data = await response.json();
+    return (data.data || []).map(
+      (user: {
+        id: string;
+        name: string;
+        username: string;
+        description?: string;
+        public_metrics?: { followers_count: number };
+      }) => ({
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        bio: user.description,
+        followers_count: user.public_metrics?.followers_count || 0,
+      })
+    );
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
