@@ -1,4 +1,4 @@
-import type { NextAuthOptions } from "next-auth";
+import type { DefaultSession, NextAuthOptions } from "next-auth";
 import Twitter from "next-auth/providers/twitter";
 
 // Use actual env vars if available, otherwise use dummy values for build time
@@ -29,9 +29,17 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    async session({ session }) {
+    async session({ session, token }) {
       // Access token is kept server-side in the JWT only and is not
       // forwarded to the browser via the session object.
+      if (session.user) {
+        // token.sub is the stable Twitter OAuth user id. Automation
+        // tables key rows off this instead of email, since the Twitter
+        // provider frequently doesn't return an email address at all —
+        // falling back to a shared placeholder there would let unrelated
+        // accounts collide on the same user_id.
+        session.user.id = token.sub;
+      }
       return session;
     },
   },
@@ -42,5 +50,13 @@ declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
     refreshToken?: string;
+  }
+}
+
+declare module "next-auth" {
+  interface Session {
+    user: DefaultSession["user"] & {
+      id?: string;
+    };
   }
 }

@@ -12,12 +12,12 @@ interface RouteParams {
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const userId = session.user.email || "unknown";
+    const userId = session.user.id;
     const body = await req.json();
     const action = body.action as "dismiss" | "post";
 
