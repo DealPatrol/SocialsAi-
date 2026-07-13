@@ -6,10 +6,11 @@ import { CONTENT_PILLARS, POST_FORMATS, TARGET_ACCOUNTS } from "@/lib/strategy";
 import type { PillarId, FormatId } from "@/lib/strategy";
 import type { GenerateResponse } from "@/app/api/generate/route";
 import AutomationSettings from "./AutomationSettings";
+import ReplySuggestions from "./ReplySuggestions";
 
 export default function PostGenerator() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"generate" | "automation">("generate");
+  const [activeTab, setActiveTab] = useState<"generate" | "suggestions" | "automation">("generate");
   const [format, setFormat] = useState<FormatId>("single-tweet");
   const [pillarId, setPillarId] = useState<PillarId>("build-in-public");
   const [context, setContext] = useState("");
@@ -100,6 +101,16 @@ export default function PostGenerator() {
           }`}
         >
           Generate Posts
+        </button>
+        <button
+          onClick={() => setActiveTab("suggestions")}
+          className={`pb-3 px-2 font-medium text-sm transition-colors ${
+            activeTab === "suggestions"
+              ? "text-blue-400 border-b-2 border-blue-400"
+              : "text-gray-400 hover:text-gray-300"
+          }`}
+        >
+          Reply Suggestions
         </button>
         <button
           onClick={() => setActiveTab("automation")}
@@ -317,6 +328,9 @@ export default function PostGenerator() {
           )}
         </div>
       )}
+
+      {/* Reply Suggestions Tab */}
+      {activeTab === "suggestions" && <ReplySuggestions />}
 
       {/* Automation Settings Tab */}
       {activeTab === "automation" && <AutomationSettings />}

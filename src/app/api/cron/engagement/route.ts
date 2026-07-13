@@ -1,21 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import {
-  followUser,
-  likeTweet,
-  sendDM,
-  getUserProfile,
-  personalizeDMTemplate,
-} from "@/lib/twitter";
+import { getAnthropicClient } from "@/lib/anthropic";
+import { getRecentTweetsByHandle, validateTweet } from "@/lib/twitter";
+import { PRODUCT_CONTEXT, TARGET_ACCOUNTS, VOICE_GUIDELINES } from "@/lib/strategy";
 
 const CRON_SECRET = process.env.CRON_SECRET || "development";
 
+// How many target accounts to check for fresh tweets per cron run. Kept
+// small and read-only to stay well under Twitter API rate limits.
+const ACCOUNTS_PER_RUN = 3;
+
+async function draftReply(tweetText: string): Promise<string | null> {
+  const client = getAnthropicClient();
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 300,
+    system: `You are drafting a strategic reply for ${PRODUCT_CONTEXT.name} (${PRODUCT_CONTEXT.tagline}).
+
+Voice guidelines:
+${VOICE_GUIDELINES}
+
+Output only the reply text, under 280 characters, no explanations or meta-commentary.`,
+    messages: [
+      {
+        role: "user",
+        content: `Draft one thoughtful reply to this tweet:\n\n"${tweetText}"\n\nIt must add a genuine insight or data point — never a generic compliment like "Great post!". Weave in ${PRODUCT_CONTEXT.name} only if it fits naturally.`,
+      },
+    ],
+  });
+
+  const text =
+    message.content[0].type === "text" ? message.content[0].text.trim() : "";
+
+  if (!text || !validateTweet(text).valid) {
+    return null;
+  }
+
+  return text;
+}
+
+/**
+ * Drafts reply suggestions from public tweets of target accounts using
+ * Claude, for a human to review and post themselves. This never follows,
+ * likes, or DMs anyone, and never posts anything automatically — it only
+ * reads public tweets and writes draft suggestions to the database.
+ */
 export async function POST(request: NextRequest) {
   if (request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -24,17 +57,15 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Get all users with automation enabled
     const { data: users, error: usersError } = await supabase
       .from("automation_settings")
-      .select("user_id, max_likes_per_day, max_follows_per_day, max_dms_per_day, follow_delay_days, dm_delay_hours")
-      .eq("auto_follow_enabled", true)
-      .or("auto_like_enabled.eq.true,auto_dm_enabled.eq.true");
+      .select("user_id, max_suggestions_per_day")
+      .eq("suggestions_enabled", true);
 
     if (usersError) {
       console.error("[v0] Cron: Error fetching users", usersError);
       return NextResponse.json(
-        { error: "Failed to fetch users" },
+        { error: "Failed to fetch users", details: usersError },
         { status: 500 }
       );
     }
@@ -42,158 +73,88 @@ export async function POST(request: NextRequest) {
     if (!users || users.length === 0) {
       return NextResponse.json({
         success: true,
-        processed: 0,
-        message: "No users with engagement automation enabled",
+        drafted: 0,
+        message: "No users with reply suggestions enabled",
       });
     }
 
-    // Use app-level OAuth token for automation
-    const accessToken = process.env.TWITTER_OAUTH_ACCESS_TOKEN;
-    if (!accessToken) {
+    const readToken = process.env.TWITTER_OAUTH_ACCESS_TOKEN;
+    if (!readToken) {
       return NextResponse.json(
         { error: "Twitter OAuth token not configured" },
         { status: 500 }
       );
     }
 
-    const stats = { follows: 0, likes: 0, dms: 0, errors: 0 };
+    const accounts = [...TARGET_ACCOUNTS]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, ACCOUNTS_PER_RUN);
 
-    // Process automation for each user
+    let drafted = 0;
+    let skipped = 0;
+    let errors = 0;
+
     for (const user of users) {
-      try {
+      const today = new Date().toISOString().split("T")[0];
+      const { count: todayCount } = await supabase
+        .from("reply_suggestions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.user_id)
+        .gte("created_at", `${today}T00:00:00Z`);
 
-        // Get target accounts
-        const { data: targetAccounts } = await supabase
-          .from("target_accounts")
-          .select("twitter_id, account_handle")
-          .eq("user_id", user.user_id);
+      const maxPerDay = user.max_suggestions_per_day || 5;
+      let remaining = maxPerDay - (todayCount || 0);
+      if (remaining <= 0) {
+        skipped++;
+        continue;
+      }
 
-        if (!targetAccounts || targetAccounts.length === 0) {
+      for (const account of accounts) {
+        if (remaining <= 0) break;
+
+        const recent = await getRecentTweetsByHandle(account.handle, readToken);
+        if ("error" in recent || recent.tweets.length === 0) {
           continue;
         }
 
-        // Check today's engagement history
-        const today = new Date().toISOString().split("T")[0];
-        const { data: todayHistory } = await supabase
-          .from("engagement_history")
-          .select("action_type")
-          .eq("user_id", user.user_id)
-          .gte("action_date", `${today}T00:00:00Z`);
+        const tweet = recent.tweets[0];
 
-        const likesCount = todayHistory?.filter(
-          (h) => h.action_type === "like"
-        ).length || 0;
-        const followsCount = todayHistory?.filter(
-          (h) => h.action_type === "follow"
-        ).length || 0;
-        const dmsCount = todayHistory?.filter(
-          (h) => h.action_type === "dm"
-        ).length || 0;
+        try {
+          const suggestedReply = await draftReply(tweet.text);
+          if (!suggestedReply) continue;
 
-        // Random action: follow (40%), like (40%), dm (20%)
-        const action = Math.random();
-        const maxLikes = user.max_likes_per_day || 3;
-        const maxFollows = user.max_follows_per_day || 2;
-        const maxDMs = user.max_dms_per_day || 2;
-
-        if (action < 0.4 && followsCount < maxFollows) {
-          // Do a follow
-          const randomTarget =
-            targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
-          const followResult = await followUser(
-            randomTarget.twitter_id,
-            accessToken
-          );
-
-          if (followResult.success) {
-            await supabase.from("engagement_history").insert({
+          const { error: insertError } = await supabase
+            .from("reply_suggestions")
+            .insert({
               user_id: user.user_id,
-              target_user_id: randomTarget.twitter_id,
-              action_type: "follow",
+              target_handle: account.handle,
+              target_tweet_id: tweet.id,
+              target_tweet_text: tweet.text,
+              suggested_reply: suggestedReply,
+              status: "pending",
             });
-            stats.follows++;
+
+          if (insertError) {
+            // Likely a duplicate suggestion for a tweet already drafted
+            // (unique constraint on user_id + target_tweet_id) — not a
+            // real error, just skip it.
+            continue;
           }
-        } else if (action < 0.8 && likesCount < maxLikes) {
-          // Do a like
-          const randomTarget =
-            targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
-          const likeResult = await likeTweet(
-            randomTarget.twitter_id,
-            accessToken
-          );
 
-          if (likeResult.success) {
-            await supabase.from("engagement_history").insert({
-              user_id: user.user_id,
-              target_user_id: randomTarget.twitter_id,
-              action_type: "like",
-              tweet_id: randomTarget.twitter_id,
-            });
-            stats.likes++;
-          }
-        } else if (dmsCount < maxDMs) {
-          // Do a DM
-          const randomTarget =
-            targetAccounts[Math.floor(Math.random() * targetAccounts.length)];
-
-          // Get DM template
-          const { data: templates } = await supabase
-            .from("dm_templates")
-            .select("template")
-            .eq("user_id", user.user_id)
-            .limit(1);
-
-          if (templates && templates.length > 0) {
-            // Get user profile for personalization
-            const profile = await getUserProfile(
-              randomTarget.twitter_id,
-              accessToken
-            );
-
-            let message = templates[0].template;
-            if ("name" in profile) {
-              message = personalizeDMTemplate(message, {
-                name: profile.name,
-                username: profile.username,
-                bio: profile.bio,
-                followers_count: profile.followers_count,
-              });
-            }
-
-            const dmResult = await sendDM(
-              randomTarget.twitter_id,
-              message,
-              accessToken
-            );
-
-            if (dmResult.success) {
-              await supabase.from("engagement_history").insert({
-                user_id: user.user_id,
-                target_user_id: randomTarget.twitter_id,
-                action_type: "dm",
-              });
-              stats.dms++;
-            }
-          }
+          drafted++;
+          remaining--;
+        } catch (error) {
+          console.error("[v0] Cron: Error drafting suggestion", error);
+          errors++;
         }
-      } catch (error) {
-        console.error("[v0] Cron: Error processing user engagement", error);
-        stats.errors++;
       }
-
-      // Random delay between 3-10 seconds between users to avoid rate limits
-      const delay = Math.random() * 7000 + 3000;
-      await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     console.log(
-      `[v0] Cron: Engagement complete. Follows: ${stats.follows}, Likes: ${stats.likes}, DMs: ${stats.dms}, Errors: ${stats.errors}`
+      `[v0] Cron: Suggestion drafting complete. Drafted: ${drafted}, Skipped: ${skipped}, Errors: ${errors}`
     );
 
-    return NextResponse.json({
-      success: true,
-      stats,
-    });
+    return NextResponse.json({ success: true, drafted, skipped, errors });
   } catch (error) {
     console.error("[v0] Cron: Error", error);
     return NextResponse.json(

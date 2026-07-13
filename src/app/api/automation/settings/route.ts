@@ -32,9 +32,7 @@ export async function GET() {
         .insert({
           user_id: userId,
           auto_post_enabled: false,
-          auto_follow_enabled: false,
-          auto_like_enabled: false,
-          auto_dm_enabled: false,
+          suggestions_enabled: false,
         })
         .select()
         .single();
