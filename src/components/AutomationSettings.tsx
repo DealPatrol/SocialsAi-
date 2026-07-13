@@ -6,15 +6,9 @@ import { useSession } from "next-auth/react";
 interface AutomationSettings {
   id: string;
   auto_post_enabled: boolean;
-  auto_follow_enabled: boolean;
-  auto_like_enabled: boolean;
-  auto_dm_enabled: boolean;
+  suggestions_enabled: boolean;
   post_interval_hours: number;
-  max_likes_per_day: number;
-  max_follows_per_day: number;
-  max_dms_per_day: number;
-  follow_delay_days: number;
-  dm_delay_hours: number;
+  max_suggestions_per_day: number;
 }
 
 export default function AutomationSettings() {
@@ -127,59 +121,19 @@ export default function AutomationSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-white">Auto Follow</h3>
-              <p className="text-sm text-gray-400">Follow target accounts automatically</p>
+              <h3 className="font-semibold text-white">Reply Suggestions</h3>
+              <p className="text-sm text-gray-400">
+                Draft AI reply suggestions from target accounts&apos; recent public tweets for you to review and post — nothing is ever posted, followed, or DMed automatically
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={settings.auto_follow_enabled}
+                checked={settings.suggestions_enabled}
                 onChange={(e) =>
                   setSettings({
                     ...settings,
-                    auto_follow_enabled: e.target.checked,
-                  })
-                }
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-white">Auto Like</h3>
-              <p className="text-sm text-gray-400">Like tweets from target accounts</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.auto_like_enabled}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    auto_like_enabled: e.target.checked,
-                  })
-                }
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-white">Auto DM</h3>
-              <p className="text-sm text-gray-400">Send personalized DMs automatically</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.auto_dm_enabled}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    auto_dm_enabled: e.target.checked,
+                    suggestions_enabled: e.target.checked,
                   })
                 }
                 className="sr-only peer"
@@ -215,102 +169,22 @@ export default function AutomationSettings() {
 
             <div>
               <label className="block text-sm text-gray-400 mb-2">
-                Max Likes/Day
+                Max Suggestions/Day
               </label>
               <input
                 type="number"
                 min="1"
-                max="10"
-                value={settings.max_likes_per_day}
+                max="20"
+                value={settings.max_suggestions_per_day}
                 onChange={(e) =>
                   setSettings({
                     ...settings,
-                    max_likes_per_day: parseInt(e.target.value),
+                    max_suggestions_per_day: parseInt(e.target.value),
                   })
                 }
                 className="w-full bg-gray-800 border border-gray-700 text-white rounded px-3 py-2"
               />
-              <p className="text-xs text-gray-500 mt-1">Default: 3</p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Max Follows/Day
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={settings.max_follows_per_day}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    max_follows_per_day: parseInt(e.target.value),
-                  })
-                }
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded px-3 py-2"
-              />
-              <p className="text-xs text-gray-500 mt-1">Default: 2</p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Max DMs/Day
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={settings.max_dms_per_day}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    max_dms_per_day: parseInt(e.target.value),
-                  })
-                }
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded px-3 py-2"
-              />
-              <p className="text-xs text-gray-500 mt-1">Default: 2</p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Follow Delay (days)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="7"
-                value={settings.follow_delay_days}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    follow_delay_days: parseInt(e.target.value),
-                  })
-                }
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded px-3 py-2"
-              />
-              <p className="text-xs text-gray-500 mt-1">Delay before following</p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                DM Delay (hours)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="72"
-                value={settings.dm_delay_hours}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    dm_delay_hours: parseInt(e.target.value),
-                  })
-                }
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded px-3 py-2"
-              />
-              <p className="text-xs text-gray-500 mt-1">Delay before DM</p>
+              <p className="text-xs text-gray-500 mt-1">Default: 5</p>
             </div>
           </div>
         </div>
@@ -325,7 +199,7 @@ export default function AutomationSettings() {
             {saving ? "Saving..." : "Save Settings"}
           </button>
           <p className="text-xs text-gray-500 flex items-center">
-            All changes are conservative to avoid Twitter spam detection
+            Every reply suggestion is reviewed and posted by you — nothing is automated without your approval
           </p>
         </div>
       </div>

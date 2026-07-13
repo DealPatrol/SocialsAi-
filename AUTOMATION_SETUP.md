@@ -1,6 +1,16 @@
-# Full Twitter Automation Setup Guide
+# Automation Setup Guide
 
-This guide walks you through setting up fully automated Twitter posting, following, liking, and DM functionality.
+This guide walks you through setting up scheduled Twitter posting and AI-drafted reply
+suggestions.
+
+Automated following, liking, and DMing of strangers is **not** part of this app: it
+risks Twitter/X spam enforcement and account suspension, and undisclosed bot activity
+violates X's platform rules. Instead, growth automation here is limited to:
+
+- **Auto Post** — posts tweets *you* wrote/generated, from a queue you control.
+- **Reply Suggestions** — Claude reads public tweets from accounts in your niche and
+  drafts a reply. It is only ever saved as a draft. You review, optionally edit, and
+  explicitly click "Post Reply" — nothing is posted, followed, or DMed on its own.
 
 ## Phase 1: Database Setup (Required First)
 
@@ -10,14 +20,16 @@ This guide walks you through setting up fully automated Twitter posting, followi
 2. Navigate to **SQL Editor**
 3. Copy the entire contents of `AUTOMATION_SCHEMA.sql` from this project
 4. Paste into Supabase SQL Editor
-5. Click **Run** to create all tables
+5. Click **Run**
 
 This creates:
 - `automation_queue` - Stores tweets waiting to be posted
-- `engagement_history` - Tracks follows, likes, DMs to prevent duplicates
-- `automation_settings` - User preferences for rate limits
-- `target_accounts` - Accounts to follow/like from
-- `dm_templates` - Personalized DM message templates
+- `automation_settings` - User preferences (auto-post interval, reply suggestions on/off)
+- `reply_suggestions` - AI-drafted replies awaiting your review
+
+The script is safe to re-run on a project that already has an older version of this
+schema — it drops the old `engagement_history` / `target_accounts` / `dm_templates`
+tables and the auto-follow/like/DM settings columns.
 
 ## Phase 2: Environment Variables
 
@@ -41,7 +53,12 @@ SUPABASE_SERVICE_ROLE_KEY=sb_service_role_key_here
 ### Required for Cron Jobs
 ```
 CRON_SECRET=create_a_random_secret_string
+TWITTER_OAUTH_ACCESS_TOKEN=app_level_token_with_tweet.read_and_users.read_scopes
 ```
+
+`TWITTER_OAUTH_ACCESS_TOKEN` is used only for read-only lookups (resolving a target
+account's handle and fetching their recent public tweets) so Claude has real context
+to draft a suggestion from. It is never used to post, follow, like, or DM.
 
 ## Phase 3: Configure Twitter Developer Portal
 
@@ -63,76 +80,54 @@ CRON_SECRET=create_a_random_secret_string
 1. Deploy the app to Vercel
 2. Click "Login with Twitter" button
 3. Authorize the app to post on your behalf
-4. Session is created with your access tokens
 
-### Step 2: Generate & Queue a Tweet
+### Step 2: Generate & Post a Tweet
 1. Go to "Generate Posts" tab
 2. Create a tweet using the generator
-3. Click "Post" to add to automation queue
+3. Click "Post" to publish it immediately with your account
 
-**What happens**: Tweet is added to `automation_queue` table with status "pending"
+### Step 3: Enable Automation Settings
+1. Go to "Automation Settings" tab
+2. Toggle on Auto Post and/or Reply Suggestions as desired
+3. Adjust the post interval / max suggestions per day
+4. Click "Save Settings"
 
-### Step 3: Test Cron Job (Posting)
-Option A - Manual Test:
+### Step 4: Test the Post-Tweets Cron (Auto Post)
 ```bash
 curl -X POST https://yourdomain.vercel.app/api/cron/post-tweets \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
+**Expected result**: Any queued tweets change status from "pending" → "posted".
 
-Option B - Wait for scheduled run (every 3 hours by default)
-
-**Expected result**: Tweet status changes from "pending" → "posted", tweet appears on your account
-
-### Step 4: Enable Automation Settings
-1. Go to "Automation Settings" tab
-2. Toggle on:
-   - ✓ Auto Post
-   - ✓ Auto Follow
-   - ✓ Auto Like
-   - ✓ Auto DM (optional - requires DM template)
-3. Adjust rate limits as desired
-4. Click "Save Settings"
-
-### Step 5: Test Engagement Cron (Follows/Likes/DMs)
+### Step 5: Test the Suggestions Cron
 ```bash
 curl -X POST https://yourdomain.vercel.app/api/cron/engagement \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
+**Expected result**: New rows appear in `reply_suggestions` with `status = 'pending'`.
+Nothing is posted by this call — go to the "Reply Suggestions" tab to review them.
 
-**Expected result**: Random actions taken (follows, likes, or DMs) to target accounts
+### Step 6: Review and Post a Suggestion
+1. Go to "Reply Suggestions" tab
+2. Read the target tweet and the drafted reply, edit if you want
+3. Click "Post Reply" to publish it as a reply with your own account, or "Dismiss"
+   to discard it
 
 ## How It Works
 
 ### Posting Flow
 1. **Generation**: You or Claude generate tweets
-2. **Queueing**: Clicked "Post" adds tweet to queue
-3. **Automation**: Cron job runs every 3 hours, posts pending tweets
-4. **Verification**: Tweet status updates in database
+2. **Posting**: Click "Post" to publish immediately, or add to the queue for the
+   Auto Post cron (runs every 3 hours by default) to publish on schedule
 
-### Engagement Flow
-1. **Configuration**: User sets target accounts and enables automation
-2. **Scheduling**: Cron job runs every 6 hours
-3. **Conservative Actions**: 
-   - Max 1-2 follows/day (with 2-3 day delay)
-   - Max 2-3 likes/day (spread throughout day)
-   - Max 1-2 DMs/day (with 24-48h delay)
-4. **No Disclosure**: All actions appear native/human-like (no bot indicators)
-
-### Rate Limiting & Safety
-
-**Automatic Conservative Limits**:
-- Post interval: Every 2-4 hours (configurable)
-- Follows: Max 1-2/day with 2-3 day delay
-- Likes: Max 2-3/day with random timing
-- DMs: Max 1-2/day with 24-48 hour delay
-
-**Random Delays**: All actions have random 2-10 second delays to avoid pattern detection
-
-**No Bot Markers**: 
-- No "#AutomatedPost" hashtags
-- No "Sent from SocialsAI" attribution
-- No bot account indicators
-- Posts appear as native user activity
+### Reply Suggestions Flow
+1. **Drafting**: The suggestions cron (runs every 6 hours by default) reads a few
+   recent public tweets from accounts in your niche (`src/lib/strategy.ts`) and asks
+   Claude to draft one reply per tweet
+2. **Review**: Suggestions appear in the "Reply Suggestions" tab with the original
+   tweet for context
+3. **Approval**: You edit and post, or dismiss — only your explicit action publishes
+   anything
 
 ## Monitoring & Troubleshooting
 
@@ -156,11 +151,10 @@ curl https://yourdomain.vercel.app/api/automation/settings \
 - Check Twitter API credentials are valid
 - Look for error messages in `error_message` column
 
-**Issue**: Engagement (follows/likes) not working
-- Make sure `auto_follow_enabled`, `auto_like_enabled` are TRUE in settings
-- Add target accounts to `target_accounts` table
-- Verify Twitter scopes include `users.read`
-- Check `engagement_history` table for duplicate actions
+**Issue**: No reply suggestions appearing
+- Make sure `suggestions_enabled` is TRUE in your settings
+- Verify `TWITTER_OAUTH_ACCESS_TOKEN` is set and has `tweet.read`/`users.read` scopes
+- Check you haven't hit `max_suggestions_per_day`
 
 **Issue**: Auth session expired
 - User needs to log in again
@@ -176,35 +170,14 @@ Edit `vercel.json` cron schedule:
   "crons": [
     {
       "path": "/api/cron/post-tweets",
-      "schedule": "0 0 * * *"  // Once per day at midnight
+      "schedule": "0 0 * * *"
     }
   ]
 }
 ```
 
-### Add Custom DM Template
-Insert into `dm_templates` table:
-```sql
-INSERT INTO dm_templates (user_id, template) VALUES (
-  'your-user-id',
-  'Hey {name}! 👋 Love your work on {bio}. Let's connect!'
-);
-```
-
-Placeholders available:
-- `{name}` - User's display name
-- `{handle}` - @username
-- `{bio}` - User's bio/description
-- `{followers}` - Follower count
-
-## Verifying It's Working
-
-After setup is complete, you should see:
-1. ✅ Tweets appear on your account at randomized intervals
-2. ✅ New follows/likes on your account (conservative rate)
-3. ✅ DMs sent to target accounts with personalized messages
-4. ✅ No bot indicators or disclosure messages
-5. ✅ All activity appears human-generated
+### Change Target Accounts for Reply Suggestions
+Edit `TARGET_ACCOUNTS` in `src/lib/strategy.ts`.
 
 ## Support
 
