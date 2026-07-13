@@ -199,7 +199,10 @@ export async function getRecentTweetsByHandle(
     );
 
     if (!userRes.ok) {
-      return { error: `Failed to resolve @${username}` };
+      if (userRes.status === 429) {
+        return { error: `Rate limit exceeded resolving @${username}` };
+      }
+      return { error: `Failed to resolve @${username} (${userRes.status})` };
     }
 
     const userData = await userRes.json();

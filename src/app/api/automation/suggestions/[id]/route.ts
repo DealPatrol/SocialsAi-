@@ -92,13 +92,24 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       const successResult: TwitterPostResponse = result;
 
-      await supabase
+      const { error: markPostedError } = await supabase
         .from("reply_suggestions")
         .update({
           status: "posted",
           posted_tweet_id: successResult.data.id,
         })
         .eq("id", id);
+
+      if (markPostedError) {
+        // The reply already posted successfully on Twitter — this is a
+        // bookkeeping failure, not a posting failure. Log loudly so it
+        // can be reconciled manually (the suggestion would otherwise
+        // stay "pending" and could be posted again).
+        console.error(
+          `[v0] Failed to mark suggestion ${id} as posted (tweet ${successResult.data.id} was posted successfully):`,
+          markPostedError
+        );
+      }
 
       return NextResponse.json({
         success: true,

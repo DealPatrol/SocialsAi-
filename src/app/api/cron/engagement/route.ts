@@ -96,11 +96,17 @@ export async function POST(request: NextRequest) {
 
     for (const user of users) {
       const today = new Date().toISOString().split("T")[0];
-      const { count: todayCount } = await supabase
+      const { count: todayCount, error: countError } = await supabase
         .from("reply_suggestions")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.user_id)
         .gte("created_at", `${today}T00:00:00Z`);
+
+      if (countError) {
+        console.error("[v0] Cron: Error counting today's suggestions", countError);
+        errors++;
+        continue;
+      }
 
       const maxPerDay = user.max_suggestions_per_day || 5;
       let remaining = maxPerDay - (todayCount || 0);
@@ -135,9 +141,13 @@ export async function POST(request: NextRequest) {
             });
 
           if (insertError) {
-            // Likely a duplicate suggestion for a tweet already drafted
-            // (unique constraint on user_id + target_tweet_id) — not a
-            // real error, just skip it.
+            // 23505 = unique_violation: a suggestion for this tweet was
+            // already drafted (unique constraint on user_id +
+            // target_tweet_id) — expected, not a real error.
+            if (insertError.code !== "23505") {
+              console.error("[v0] Cron: Error inserting suggestion", insertError);
+              errors++;
+            }
             continue;
           }
 
