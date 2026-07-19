@@ -193,7 +193,7 @@ export default function SmartDiscovery() {
                     className="flex items-center justify-between p-3 rounded-lg bg-gray-900 border border-gray-700"
                   >
                     <div>
-                      <p className="text-white font-medium">"{kw.keyword}"</p>
+                      <p className="text-white font-medium">&quot;{kw.keyword}&quot;</p>
                       <p className="text-xs text-gray-400">
                         {kw.last_searched
                           ? `Last searched: ${new Date(kw.last_searched).toLocaleDateString()}`
@@ -279,7 +279,7 @@ export default function SmartDiscovery() {
       <div className="p-4 rounded-lg bg-blue-900/20 border border-blue-800 space-y-2">
         <p className="text-sm font-medium text-blue-300">How Smart Discovery Works</p>
         <ul className="text-xs text-gray-300 space-y-1">
-          <li>• Add keywords related to your niche (e.g., "founder", "saas")</li>
+          <li>• Add keywords related to your niche (e.g., &quot;founder&quot;, &quot;saas&quot;)</li>
           <li>• Discovery runs at 6 AM and 6 PM UTC - finds users tweeting your keywords</li>
           <li>• Scores users based on followers, verification, bio, and engagement</li>
           <li>• Auto-engages (follows, likes, DMs) with high-scoring users (70+)</li>

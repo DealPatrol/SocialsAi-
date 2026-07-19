@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const userId = session.user.email || "unknown";
 
-    let query = supabase
+    const query = supabase
       .from("user_discovery_candidates")
       .select("*")
       .eq("user_id", userId)
@@ -77,7 +77,12 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const userId = session.user.email || "unknown";
 
-    let updateData: any = { status };
+    const updateData: {
+      status: string;
+      followed_at?: string;
+      engaged_at?: string;
+      reason_skipped?: string;
+    } = { status };
     
     if (status === "followed") {
       updateData.followed_at = new Date().toISOString();
