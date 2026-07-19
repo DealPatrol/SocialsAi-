@@ -29,18 +29,23 @@ export async function GET(request: Request) {
     }
 
     // Get all users with niche keywords
-    const { data: users, error: usersError } = await supabase
+    const { data: userRows, error: usersError } = await supabase
       .from("niche_keywords")
-      .select("DISTINCT user_id");
+      .select("user_id");
 
-    if (usersError || !users) {
+    if (usersError || !userRows) {
       throw new Error(`Failed to fetch users: ${usersError?.message}`);
     }
+
+    // De-duplicate user_ids in JS since PostgREST has no DISTINCT support
+    const uniqueUserIds = Array.from(
+      new Set(userRows.map((row) => row.user_id))
+    );
 
     const stats = { discovered: 0, errors: 0, updated: 0 };
 
     // Process each user's keywords
-    for (const { user_id } of users) {
+    for (const user_id of uniqueUserIds) {
       try {
         // Get keywords for this user
         const { data: keywords, error: keywordsError } = await supabase
