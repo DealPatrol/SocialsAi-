@@ -1,15 +1,12 @@
 import type { NextAuthOptions } from "next-auth";
 import Twitter from "next-auth/providers/twitter";
 
-// Use actual env vars if available, otherwise use dummy values for build time
-const clientId = process.env.TWITTER_CLIENT_ID || "placeholder-id";
-const clientSecret = process.env.TWITTER_CLIENT_SECRET || "placeholder-secret";
-
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     Twitter({
-      clientId,
-      clientSecret,
+      clientId: process.env.TWITTER_CLIENT_ID || "",
+      clientSecret: process.env.TWITTER_CLIENT_SECRET || "",
       version: "2.0",
       authorization: {
         params: {
