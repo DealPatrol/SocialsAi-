@@ -24,9 +24,13 @@ export default function ReplySuggestions() {
     try {
       const res = await fetch("/api/automation/suggestions");
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to load suggestions");
+      }
       setSuggestions(data.suggestions ?? []);
-    } catch {
-      setError("Failed to load suggestions");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load suggestions");
+      setSuggestions([]);
     }
   }, [session]);
 

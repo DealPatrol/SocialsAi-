@@ -12,12 +12,12 @@ interface RouteParams {
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const userId = session.user.email || "unknown";
+    const userId = session.user.id;
     const body = await req.json();
     const action = body.action as "dismiss" | "post";
 
@@ -92,13 +92,24 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       const successResult: TwitterPostResponse = result;
 
-      await supabase
+      const { error: markPostedError } = await supabase
         .from("reply_suggestions")
         .update({
           status: "posted",
           posted_tweet_id: successResult.data.id,
         })
         .eq("id", id);
+
+      if (markPostedError) {
+        // The reply already posted successfully on Twitter — this is a
+        // bookkeeping failure, not a posting failure. Log loudly so it
+        // can be reconciled manually (the suggestion would otherwise
+        // stay "pending" and could be posted again).
+        console.error(
+          `[v0] Failed to mark suggestion ${id} as posted (tweet ${successResult.data.id} was posted successfully):`,
+          markPostedError
+        );
+      }
 
       return NextResponse.json({
         success: true,

@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     const supabase = await createClient();
-    const userId = session.user.email || "unknown";
+    const userId = session.user.id;
 
     // Add tweet to queue for immediate posting
     const { data, error } = await supabase
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -68,7 +68,7 @@ export async function GET() {
     }
 
     const supabase = await createClient();
-    const userId = session.user.email || "unknown";
+    const userId = session.user.id;
 
     const { data, error } = await supabase
       .from("automation_queue")

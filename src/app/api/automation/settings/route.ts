@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const supabase = await createClient();
-    const userId = session.user.email || "unknown";
+    const userId = session.user.id;
 
     // Get or create settings
     const { data, error: fetchError } = await supabase
@@ -61,7 +61,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -70,7 +70,7 @@ export async function PUT(request: Request) {
 
     const updates = await request.json();
     const supabase = await createClient();
-    const userId = session.user.email || "unknown";
+    const userId = session.user.id;
 
     const { data, error } = await supabase
       .from("automation_settings")
