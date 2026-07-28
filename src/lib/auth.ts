@@ -9,6 +9,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.TWITTER_CLIENT_SECRET || "",
       version: "2.0",
       authorization: {
+        url: "https://twitter.com/i/oauth2/authorize",
         params: {
           scope: "tweet.read tweet.write users.read offline.access",
         },
@@ -19,6 +20,13 @@ export const authOptions: NextAuthOptions = {
     signIn: "/",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
     async jwt({ token, account }) {
       if (account) {
         token.accessToken = account.access_token;
