@@ -4,12 +4,14 @@ import {
   buildTargetAccountQuery,
   buildThreadQuery,
   rankFollowCandidates,
+  rankLikerEngagementProspects,
   rankThreadOpportunities,
   scoreFollowCandidate,
   scoreThreadOpportunity,
 } from "@/lib/x/growth";
 import type {
   FollowCandidate,
+  LikerEngagementProspect,
   ThreadOpportunity,
   TweetCandidate,
 } from "@/lib/platforms/types";
@@ -24,6 +26,17 @@ type RawTweet = {
     like_count?: number;
     reply_count?: number;
     retweet_count?: number;
+  };
+};
+
+type RawUser = {
+  id: string;
+  username: string;
+  name: string;
+  description?: string;
+  public_metrics?: {
+    followers_count?: number;
+    following_count?: number;
   };
 };
 
@@ -280,6 +293,56 @@ export class XApiClient {
       `/users/${me.id}/followers?max_results=${Math.min(maxResults, 100)}&user.fields=username,name,description`
     );
     return data.data ?? [];
+  }
+
+  async getTweetLikingUsers(tweetId: string, maxResults = 25): Promise<RawUser[]> {
+    const params = new URLSearchParams({
+      max_results: String(Math.min(maxResults, 100)),
+      "user.fields": "username,name,description,public_metrics",
+    });
+    const data = await this.request<{ data?: RawUser[] }>(
+      `/tweets/${tweetId}/liking_users?${params}`
+    );
+    return data.data ?? [];
+  }
+
+  async findLikerEngagementProspects(
+    tweetId: string,
+    options: { maxLikers?: number; minCombinedScore?: number } = {}
+  ): Promise<LikerEngagementProspect[]> {
+    const likers = await this.getTweetLikingUsers(tweetId, options.maxLikers ?? 25);
+    const minCombinedScore = options.minCombinedScore ?? 60;
+    const prospects: LikerEngagementProspect[] = [];
+
+    for (const user of likers) {
+      const { prospectScore, followBackScore, reason } = scoreFollowCandidate({
+        bio: user.description,
+        username: user.username,
+        followerCount: user.public_metrics?.followers_count,
+        followingCount: user.public_metrics?.following_count,
+      });
+      const combined = (prospectScore + followBackScore) / 2;
+      if (combined < minCombinedScore) continue;
+
+      const recentTweets = await this.getRecentTweetsByUser(user.id, 1);
+      const latestTweet = recentTweets[0];
+
+      prospects.push({
+        userId: user.id,
+        username: user.username,
+        bio: user.description,
+        followerCount: user.public_metrics?.followers_count,
+        followingCount: user.public_metrics?.following_count,
+        prospectScore,
+        followBackScore,
+        reason,
+        sourceTweetId: tweetId,
+        latestTweet,
+        recommendedAction: latestTweet ? "draft_value_reply" : "review_profile",
+      });
+    }
+
+    return rankLikerEngagementProspects(prospects);
   }
 
   async findFollowCandidates(keywords: string[]): Promise<FollowCandidate[]> {

@@ -79,6 +79,12 @@ export interface FollowCandidate {
   reason: string;
 }
 
+export interface LikerEngagementProspect extends FollowCandidate {
+  sourceTweetId: string;
+  latestTweet?: TweetCandidate;
+  recommendedAction: "review_profile" | "draft_value_reply";
+}
+
 export interface DmCandidate {
   userId: string;
   username: string;
