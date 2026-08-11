@@ -1,5 +1,6 @@
 import type {
   FollowCandidate,
+  LikerEngagementProspect,
   ThreadOpportunity,
   TweetCandidate,
 } from "@/lib/platforms/types";
@@ -71,6 +72,11 @@ export function scoreFollowCandidate(user: {
   const signals: string[] = [];
 
   const icpPatterns: Array<[RegExp, number, string]> = [
+    [
+      /ai|artificial\s+intelligence|machine\s*learning|ml\b|llm|genai|prompt|agentic|automation|openai|anthropic/i,
+      22,
+      "AI-focused",
+    ],
     [/indie\s*hack/i, 18, "indie hacker"],
     [/saas|founder|bootstrap/i, 16, "SaaS founder"],
     [/build(ing)?\s+in\s+public/i, 14, "build in public"],
@@ -150,6 +156,20 @@ export function rankFollowCandidates(
   return [...candidates].sort((a, b) => {
     const aScore = (a.prospectScore + (a.followBackScore ?? 0)) / 2;
     const bScore = (b.prospectScore + (b.followBackScore ?? 0)) / 2;
+    return bScore - aScore;
+  });
+}
+
+export function rankLikerEngagementProspects(
+  prospects: LikerEngagementProspect[]
+): LikerEngagementProspect[] {
+  return [...prospects].sort((a, b) => {
+    const aScore =
+      (a.prospectScore + (a.followBackScore ?? 0)) / 2 +
+      (a.latestTweet ? scoreThreadOpportunity(a.latestTweet) * 0.2 : 0);
+    const bScore =
+      (b.prospectScore + (b.followBackScore ?? 0)) / 2 +
+      (b.latestTweet ? scoreThreadOpportunity(b.latestTweet) * 0.2 : 0);
     return bScore - aScore;
   });
 }
