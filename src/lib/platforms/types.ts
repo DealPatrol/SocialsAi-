@@ -17,9 +17,9 @@ export const PLATFORM_CAPABILITIES: Record<
   x: {
     canPost: true,
     canReply: true,
-    canFollow: true,
+    canFollow: false,
     canSearch: true,
-    canDm: true,
+    canDm: false,
     oauthAvailable: true,
     status: "live",
   },
@@ -68,20 +68,13 @@ export type ThreadOpportunity = TweetCandidate & {
   opportunityScore: number;
 };
 
-export interface FollowCandidate {
+export interface AudienceCandidate {
   userId: string;
   username: string;
   bio?: string;
   followerCount?: number;
   followingCount?: number;
   prospectScore: number;
-  followBackScore?: number;
+  relevanceScore: number;
   reason: string;
-}
-
-export interface DmCandidate {
-  userId: string;
-  username: string;
-  context: string;
-  warmReason: string;
 }
