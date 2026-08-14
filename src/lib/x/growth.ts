@@ -1,5 +1,5 @@
 import type {
-  FollowCandidate,
+  AudienceCandidate,
   ThreadOpportunity,
   TweetCandidate,
 } from "@/lib/platforms/types";
@@ -10,31 +10,23 @@ export const GROWTH_PRESET_LIMITS: Record<
   GrowthPreset,
   {
     maxRepliesPerDay: number;
-    maxFollowsPerDay: number;
     maxPostsPerDay: number;
-    maxDmsPerDay: number;
     minMinutesBetweenActions: number;
   }
 > = {
   safe: {
     maxRepliesPerDay: 15,
-    maxFollowsPerDay: 8,
     maxPostsPerDay: 3,
-    maxDmsPerDay: 2,
     minMinutesBetweenActions: 12,
   },
   balanced: {
     maxRepliesPerDay: 25,
-    maxFollowsPerDay: 15,
     maxPostsPerDay: 5,
-    maxDmsPerDay: 3,
     minMinutesBetweenActions: 8,
   },
   aggressive: {
     maxRepliesPerDay: 40,
-    maxFollowsPerDay: 22,
     maxPostsPerDay: 8,
-    maxDmsPerDay: 5,
     minMinutesBetweenActions: 6,
   },
 };
@@ -58,19 +50,20 @@ export function scoreThreadOpportunity(tweet: TweetCandidate): number {
   return Math.min(100, Math.max(0, score));
 }
 
-/** Follow-back likelihood + business prospect score */
-export function scoreFollowCandidate(user: {
+/** Relevance score for accounts that may be worth monitoring or replying to. */
+export function scoreAudienceCandidate(user: {
   bio?: string;
   username: string;
   followerCount?: number;
   followingCount?: number;
-}): { prospectScore: number; followBackScore: number; reason: string } {
+}): { prospectScore: number; relevanceScore: number; reason: string } {
   const text = `${user.bio ?? ""} ${user.username}`.toLowerCase();
   let prospectScore = 25;
-  let followBackScore = 40;
+  let relevanceScore = 30;
   const signals: string[] = [];
 
   const icpPatterns: Array<[RegExp, number, string]> = [
+    [/ai|artificial intelligence|machine learning|ml\b/i, 22, "AI-focused"],
     [/indie\s*hack/i, 18, "indie hacker"],
     [/saas|founder|bootstrap/i, 16, "SaaS founder"],
     [/build(ing)?\s+in\s+public/i, 14, "build in public"],
@@ -89,26 +82,27 @@ export function scoreFollowCandidate(user: {
   const followers = user.followerCount ?? 0;
   const following = user.followingCount ?? 0;
 
-  // Accounts that follow many = more likely to follow back
+  if (followers >= 200 && followers <= 50_000) {
+    relevanceScore += 20;
+    signals.push("reachable audience size");
+  }
   if (following > 0 && followers > 0) {
-    const ratio = following / followers;
-    if (ratio > 0.8 && ratio < 3) followBackScore += 25;
-    if (followers >= 200 && followers <= 50_000) followBackScore += 15;
-    if (followers < 100_000) followBackScore += 10;
+    const ratio = followers / following;
+    if (ratio >= 0.25 && ratio <= 8) relevanceScore += 10;
   }
 
   if (/bot|spam|crypto\s*airdrop|nft\s*flip/i.test(text)) {
     prospectScore -= 50;
-    followBackScore -= 40;
+    relevanceScore -= 40;
   }
 
   return {
     prospectScore: Math.min(100, Math.max(0, prospectScore)),
-    followBackScore: Math.min(100, Math.max(0, followBackScore)),
+    relevanceScore: Math.min(100, Math.max(0, relevanceScore)),
     reason:
       signals.length > 0
-        ? `${signals.slice(0, 2).join(", ")} · follow-back ${followBackScore}`
-        : `follow-back likelihood ${followBackScore}`,
+        ? signals.slice(0, 3).join(", ")
+        : `audience relevance ${relevanceScore}`,
   };
 }
 
@@ -144,12 +138,12 @@ export function rankThreadOpportunities(
   );
 }
 
-export function rankFollowCandidates(
-  candidates: FollowCandidate[]
-): FollowCandidate[] {
+export function rankAudienceCandidates(
+  candidates: AudienceCandidate[]
+): AudienceCandidate[] {
   return [...candidates].sort((a, b) => {
-    const aScore = (a.prospectScore + (a.followBackScore ?? 0)) / 2;
-    const bScore = (b.prospectScore + (b.followBackScore ?? 0)) / 2;
+    const aScore = (a.prospectScore + a.relevanceScore) / 2;
+    const bScore = (b.prospectScore + b.relevanceScore) / 2;
     return bScore - aScore;
   });
 }

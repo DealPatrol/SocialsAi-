@@ -3,13 +3,13 @@ import {
   buildKeywordQuery,
   buildTargetAccountQuery,
   buildThreadQuery,
-  rankFollowCandidates,
+  rankAudienceCandidates,
   rankThreadOpportunities,
-  scoreFollowCandidate,
+  scoreAudienceCandidate,
   scoreThreadOpportunity,
 } from "@/lib/x/growth";
 import type {
-  FollowCandidate,
+  AudienceCandidate,
   ThreadOpportunity,
   TweetCandidate,
 } from "@/lib/platforms/types";
@@ -162,33 +162,6 @@ export class XApiClient {
     return data.data.id;
   }
 
-  async likeTweet(tweetId: string): Promise<void> {
-    const me = await this.getMe();
-    await this.request(`/users/${me.id}/likes`, {
-      method: "POST",
-      body: JSON.stringify({ tweet_id: tweetId }),
-    });
-  }
-
-  async followUser(targetUserId: string): Promise<void> {
-    const me = await this.getMe();
-    await this.request(`/users/${me.id}/following`, {
-      method: "POST",
-      body: JSON.stringify({ target_user_id: targetUserId }),
-    });
-  }
-
-  async sendDm(participantId: string, text: string): Promise<string> {
-    const data = await this.request<{ data: { dm_event_id: string } }>(
-      `/dm_conversations/with/${participantId}/messages`,
-      {
-        method: "POST",
-        body: JSON.stringify({ text }),
-      }
-    );
-    return data.data.dm_event_id;
-  }
-
   async lookupUserByUsername(username: string): Promise<{
     id: string;
     username: string;
@@ -260,35 +233,13 @@ export class XApiClient {
     return this.mapTweets(data, { tactic: "authority", isTarget: true });
   }
 
-  async getFollowers(maxResults = 25): Promise<
-    Array<{
-      id: string;
-      username: string;
-      name: string;
-      description?: string;
-    }>
-  > {
-    const me = await this.getMe();
-    const data = await this.request<{
-      data?: Array<{
-        id: string;
-        username: string;
-        name: string;
-        description?: string;
-      }>;
-    }>(
-      `/users/${me.id}/followers?max_results=${Math.min(maxResults, 100)}&user.fields=username,name,description`
-    );
-    return data.data ?? [];
-  }
-
-  async findFollowCandidates(keywords: string[]): Promise<FollowCandidate[]> {
+  async findAudienceCandidates(keywords: string[]): Promise<AudienceCandidate[]> {
     const tweets = await this.searchRecentTweets(
       buildKeywordQuery(keywords),
       25
     );
     const seen = new Set<string>();
-    const candidates: FollowCandidate[] = [];
+    const candidates: AudienceCandidate[] = [];
 
     for (const tweet of tweets) {
       if (seen.has(tweet.authorId)) continue;
@@ -297,14 +248,14 @@ export class XApiClient {
       const user = await this.lookupUserByUsername(tweet.authorUsername);
       if (!user) continue;
 
-      const { prospectScore, followBackScore, reason } = scoreFollowCandidate({
+      const { prospectScore, relevanceScore, reason } = scoreAudienceCandidate({
         bio: user.description,
         username: user.username,
         followerCount: user.public_metrics?.followers_count,
         followingCount: user.public_metrics?.following_count,
       });
 
-      const combined = (prospectScore + followBackScore) / 2;
+      const combined = (prospectScore + relevanceScore) / 2;
       if (combined < 50) continue;
 
       candidates.push({
@@ -314,12 +265,12 @@ export class XApiClient {
         followerCount: user.public_metrics?.followers_count,
         followingCount: user.public_metrics?.following_count,
         prospectScore,
-        followBackScore,
+        relevanceScore,
         reason,
       });
     }
 
-    return rankFollowCandidates(candidates);
+    return rankAudienceCandidates(candidates);
   }
 }
 
