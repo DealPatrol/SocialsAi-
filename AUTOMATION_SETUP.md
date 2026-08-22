@@ -8,9 +8,10 @@ risks Twitter/X spam enforcement and account suspension, and undisclosed bot act
 violates X's platform rules. Instead, growth automation here is limited to:
 
 - **Auto Post** — posts tweets *you* wrote/generated, from a queue you control.
-- **Reply Suggestions** — Claude reads public tweets from accounts in your niche and
-  drafts a reply. It is only ever saved as a draft. You review, optionally edit, and
-  explicitly click "Post Reply" — nothing is posted, followed, or DMed on its own.
+- **Reply Suggestions** — Claude reads public tweets from AI-builder and indie SaaS
+  accounts in your niche and drafts a reply. It is only ever saved as a draft. You
+  review, optionally edit, and explicitly click "Post Reply" — nothing is posted,
+  followed, liked, or DMed on its own.
 
 ## Phase 1: Database Setup (Required First)
 
@@ -177,7 +178,10 @@ Edit `vercel.json` cron schedule:
 ```
 
 ### Change Target Accounts for Reply Suggestions
-Edit `TARGET_ACCOUNTS` in `src/lib/strategy.ts`.
+Edit `TARGET_ACCOUNTS` in `src/lib/strategy.ts`. The default list prioritizes
+AI-builder accounts (`@karpathy`, `@swyx`, `@OpenAI`, `@AnthropicAI`) plus
+indie SaaS accounts. Keep this list focused on conversations where you can add
+real value; do not use it for reciprocal follow/like campaigns.
 
 ## Support
 
