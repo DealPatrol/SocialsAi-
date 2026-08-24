@@ -58,19 +58,20 @@ export function scoreThreadOpportunity(tweet: TweetCandidate): number {
   return Math.min(100, Math.max(0, score));
 }
 
-/** Follow-back likelihood + business prospect score */
+/** Audience relevance + business prospect score for human-reviewed discovery. */
 export function scoreFollowCandidate(user: {
   bio?: string;
   username: string;
   followerCount?: number;
   followingCount?: number;
-}): { prospectScore: number; followBackScore: number; reason: string } {
+}): { prospectScore: number; audienceFitScore: number; reason: string } {
   const text = `${user.bio ?? ""} ${user.username}`.toLowerCase();
   let prospectScore = 25;
-  let followBackScore = 40;
+  let audienceFitScore = 35;
   const signals: string[] = [];
 
   const icpPatterns: Array<[RegExp, number, string]> = [
+    [/\bai\b|artificial intelligence|machine learning|llm|agent/i, 22, "AI"],
     [/indie\s*hack/i, 18, "indie hacker"],
     [/saas|founder|bootstrap/i, 16, "SaaS founder"],
     [/build(ing)?\s+in\s+public/i, 14, "build in public"],
@@ -89,26 +90,26 @@ export function scoreFollowCandidate(user: {
   const followers = user.followerCount ?? 0;
   const following = user.followingCount ?? 0;
 
-  // Accounts that follow many = more likely to follow back
+  // Prefer engaged, human-sized accounts without optimizing for reciprocal follows.
   if (following > 0 && followers > 0) {
     const ratio = following / followers;
-    if (ratio > 0.8 && ratio < 3) followBackScore += 25;
-    if (followers >= 200 && followers <= 50_000) followBackScore += 15;
-    if (followers < 100_000) followBackScore += 10;
+    if (ratio >= 0.2 && ratio <= 5) audienceFitScore += 15;
+    if (followers >= 200 && followers <= 50_000) audienceFitScore += 20;
+    if (followers < 100_000) audienceFitScore += 10;
   }
 
   if (/bot|spam|crypto\s*airdrop|nft\s*flip/i.test(text)) {
     prospectScore -= 50;
-    followBackScore -= 40;
+    audienceFitScore -= 40;
   }
 
   return {
     prospectScore: Math.min(100, Math.max(0, prospectScore)),
-    followBackScore: Math.min(100, Math.max(0, followBackScore)),
+    audienceFitScore: Math.min(100, Math.max(0, audienceFitScore)),
     reason:
       signals.length > 0
-        ? `${signals.slice(0, 2).join(", ")} · follow-back ${followBackScore}`
-        : `follow-back likelihood ${followBackScore}`,
+        ? `${signals.slice(0, 2).join(", ")} · audience fit ${audienceFitScore}`
+        : `audience fit ${audienceFitScore}`,
   };
 }
 
@@ -148,8 +149,8 @@ export function rankFollowCandidates(
   candidates: FollowCandidate[]
 ): FollowCandidate[] {
   return [...candidates].sort((a, b) => {
-    const aScore = (a.prospectScore + (a.followBackScore ?? 0)) / 2;
-    const bScore = (b.prospectScore + (b.followBackScore ?? 0)) / 2;
+    const aScore = (a.prospectScore + (a.audienceFitScore ?? 0)) / 2;
+    const bScore = (b.prospectScore + (b.audienceFitScore ?? 0)) / 2;
     return bScore - aScore;
   });
 }
