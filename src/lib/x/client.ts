@@ -297,15 +297,14 @@ export class XApiClient {
       const user = await this.lookupUserByUsername(tweet.authorUsername);
       if (!user) continue;
 
-      const { prospectScore, followBackScore, reason } = scoreFollowCandidate({
+      const { prospectScore, reason } = scoreFollowCandidate({
         bio: user.description,
         username: user.username,
         followerCount: user.public_metrics?.followers_count,
         followingCount: user.public_metrics?.following_count,
       });
 
-      const combined = (prospectScore + followBackScore) / 2;
-      if (combined < 50) continue;
+      if (prospectScore < 50) continue;
 
       candidates.push({
         userId: user.id,
@@ -314,7 +313,6 @@ export class XApiClient {
         followerCount: user.public_metrics?.followers_count,
         followingCount: user.public_metrics?.following_count,
         prospectScore,
-        followBackScore,
         reason,
       });
     }

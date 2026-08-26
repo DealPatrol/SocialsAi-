@@ -75,7 +75,6 @@ export interface FollowCandidate {
   followerCount?: number;
   followingCount?: number;
   prospectScore: number;
-  followBackScore?: number;
   reason: string;
 }
 
