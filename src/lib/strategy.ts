@@ -87,10 +87,14 @@ export const POST_FORMATS = [
 export type FormatId = (typeof POST_FORMATS)[number]["id"];
 
 export const TARGET_ACCOUNTS = [
+  { handle: "@karpathy", niche: "AI education, builders, developer tooling" },
+  { handle: "@swyx", niche: "AI engineering, agents, developer tools" },
+  { handle: "@OpenAI", niche: "AI product updates and developer ecosystem" },
+  { handle: "@AnthropicAI", niche: "AI safety, Claude, AI developer workflows" },
   { handle: "@levelsio", niche: "indie hacking, building in public" },
-  { handle: "@dvassallo", niche: "indie hacking, quitting big tech" },
   { handle: "@arvidkahl", niche: "bootstrapped SaaS, audience building" },
   { handle: "@shl", niche: "Gumroad, creator economy, indie founders" },
+  { handle: "@dvassallo", niche: "indie hacking, quitting big tech" },
   { handle: "@thepatwalls", niche: "Makerpad, no-code, side projects" },
   { handle: "@marc_louvion", niche: "indie hacking, SaaS, building in public" },
 ];
