@@ -17,9 +17,9 @@ export const PLATFORM_CAPABILITIES: Record<
   x: {
     canPost: true,
     canReply: true,
-    canFollow: true,
+    canFollow: false,
     canSearch: true,
-    canDm: true,
+    canDm: false,
     oauthAvailable: true,
     status: "live",
   },
