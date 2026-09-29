@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getAnthropicClient } from "@/lib/anthropic";
 import { getRecentTweetsByHandle, validateTweet } from "@/lib/twitter";
 import { PRODUCT_CONTEXT, TARGET_ACCOUNTS, VOICE_GUIDELINES } from "@/lib/strategy";
+import { createAdminClient, isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 const CRON_SECRET = process.env.CRON_SECRET || "development";
 
@@ -51,11 +51,15 @@ async function runEngagementCron(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json(
+      { error: "Supabase service role is not configured" },
+      { status: 500 }
     );
+  }
+
+  try {
+    const supabase = createAdminClient();
 
     const { data: users, error: usersError } = await supabase
       .from("automation_settings")
