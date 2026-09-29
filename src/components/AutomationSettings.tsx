@@ -101,7 +101,9 @@ export default function AutomationSettings() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-white">Auto Post</h3>
-              <p className="text-sm text-gray-400">Automatically post queued tweets</p>
+              <p className="text-sm text-gray-400">
+                Automatically post tweets you add with Queue
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input

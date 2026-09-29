@@ -118,11 +118,18 @@ export async function postTweet(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error("[v0] Twitter API error:", {
         status: response.status,
         error: errorData,
       });
+
+      const apiMessage =
+        errorData?.title ||
+        errorData?.errors?.[0]?.message ||
+        "Failed to post tweet";
+      const apiDetails =
+        errorData?.detail || errorData?.errors?.[0]?.detail;
 
       // Handle specific Twitter API errors
       if (response.status === 429) {
@@ -142,6 +149,15 @@ export async function postTweet(
         };
       }
 
+      if (response.status === 402 || errorData?.title === "CreditsDepleted") {
+        return {
+          code: 402,
+          message: "X API credits depleted",
+          details:
+            "Your X developer app is out of API credits. Add credits in the X Developer Portal, then retry failed posts.",
+        };
+      }
+
       if (response.status === 403) {
         return {
           code: 403,
@@ -153,8 +169,8 @@ export async function postTweet(
 
       return {
         code: response.status,
-        message: errorData?.errors?.[0]?.message || "Failed to post tweet",
-        details: errorData?.detail,
+        message: apiMessage,
+        details: apiDetails,
       };
     }
 

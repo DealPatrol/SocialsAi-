@@ -1,5 +1,6 @@
 import type { DefaultSession, NextAuthOptions } from "next-auth";
 import Twitter from "next-auth/providers/twitter";
+import { persistXAccount } from "@/lib/x-accounts";
 
 // Use actual env vars if available, otherwise use dummy values for build time
 const clientId = process.env.TWITTER_CLIENT_ID || "placeholder-id";
@@ -22,10 +23,34 @@ export const authOptions: NextAuthOptions = {
     signIn: "/",
   },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at;
+
+        if (token.sub && account.access_token) {
+          const raw = profile as
+            | { data?: { id?: string; username?: string }; id?: string; username?: string }
+            | undefined;
+          const username = raw?.data?.username ?? raw?.username;
+          const xUserId = raw?.data?.id ?? raw?.id;
+
+          try {
+            await persistXAccount({
+              userId: token.sub,
+              accessToken: account.access_token,
+              refreshToken: account.refresh_token,
+              expiresAt: account.expires_at
+                ? new Date(account.expires_at * 1000)
+                : null,
+              username,
+              xUserId,
+            });
+          } catch (error) {
+            console.error("[v0] Failed to persist X tokens on sign-in", error);
+          }
+        }
       }
       return token;
     },
@@ -50,6 +75,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
     refreshToken?: string;
+    expiresAt?: number;
   }
 }
 

@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
-import { createClient } from "@/utils/supabase/server";
+import { persistTokensFromJwt } from "@/lib/x-accounts";
+import {
+  createAdminClient,
+  isSupabaseAdminConfigured,
+} from "@/utils/supabase/admin";
 import { postTweet, TwitterPostResponse } from "@/lib/twitter";
 
 interface RouteParams {
@@ -21,7 +25,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const body = await req.json();
     const action = body.action as "dismiss" | "post";
 
-    const supabase = await createClient();
+    if (!isSupabaseAdminConfigured()) {
+      return NextResponse.json(
+        { error: "Supabase is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createAdminClient();
 
     const { data: suggestion, error: fetchError } = await supabase
       .from("reply_suggestions")
@@ -68,6 +79,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
           { status: 401 }
         );
       }
+      await persistTokensFromJwt(token);
 
       const text: string = (body.text ?? suggestion.suggested_reply).trim();
       if (!text) {

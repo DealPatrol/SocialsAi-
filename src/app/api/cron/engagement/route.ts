@@ -46,7 +46,7 @@ Output only the reply text, under 280 characters, no explanations or meta-commen
  * likes, or DMs anyone, and never posts anything automatically — it only
  * reads public tweets and writes draft suggestions to the database.
  */
-export async function POST(request: NextRequest) {
+async function runEngagementCron(request: NextRequest) {
   if (request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -172,4 +172,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return runEngagementCron(request);
+}
+
+export async function POST(request: NextRequest) {
+  return runEngagementCron(request);
 }
