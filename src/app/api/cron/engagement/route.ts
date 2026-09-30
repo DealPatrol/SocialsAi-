@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getAnthropicClient } from "@/lib/anthropic";
 import { getRecentTweetsByHandle, validateTweet } from "@/lib/twitter";
 import { PRODUCT_CONTEXT, TARGET_ACCOUNTS, VOICE_GUIDELINES } from "@/lib/strategy";
+import { createAdminClient, isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 const CRON_SECRET = process.env.CRON_SECRET || "development";
 
@@ -46,16 +46,20 @@ Output only the reply text, under 280 characters, no explanations or meta-commen
  * likes, or DMs anyone, and never posts anything automatically — it only
  * reads public tweets and writes draft suggestions to the database.
  */
-export async function POST(request: NextRequest) {
+async function runEngagementCron(request: NextRequest) {
   if (request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json(
+      { error: "Supabase service role is not configured" },
+      { status: 500 }
     );
+  }
+
+  try {
+    const supabase = createAdminClient();
 
     const { data: users, error: usersError } = await supabase
       .from("automation_settings")
@@ -172,4 +176,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return runEngagementCron(request);
+}
+
+export async function POST(request: NextRequest) {
+  return runEngagementCron(request);
 }

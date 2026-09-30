@@ -6,11 +6,14 @@ import { CONTENT_PILLARS, POST_FORMATS, TARGET_ACCOUNTS } from "@/lib/strategy";
 import type { PillarId, FormatId } from "@/lib/strategy";
 import type { GenerateResponse } from "@/app/api/generate/route";
 import AutomationSettings from "./AutomationSettings";
+import AutomationQueue from "./AutomationQueue";
 import ReplySuggestions from "./ReplySuggestions";
 
 export default function PostGenerator() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"generate" | "suggestions" | "automation">("generate");
+  const [activeTab, setActiveTab] = useState<
+    "generate" | "queue" | "suggestions" | "automation"
+  >("generate");
   const [format, setFormat] = useState<FormatId>("single-tweet");
   const [pillarId, setPillarId] = useState<PillarId>("build-in-public");
   const [context, setContext] = useState("");
@@ -21,6 +24,7 @@ export default function PostGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
   const [posting, setPosting] = useState<number | null>(null);
+  const [queuing, setQueuing] = useState<number | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
   const [postSuccess, setPostSuccess] = useState<string | null>(null);
 
@@ -74,7 +78,7 @@ export default function PostGenerator() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error ?? "Failed to post tweet");
+        throw new Error(data.details ?? data.error ?? "Failed to post tweet");
       }
 
       setPostSuccess(`Tweet posted! ID: ${data.tweetId}`);
@@ -83,6 +87,40 @@ export default function PostGenerator() {
       setPostError(e instanceof Error ? e.message : "Failed to post");
     } finally {
       setPosting(null);
+    }
+  }
+
+  async function queueForAutoPost(text: string, idx: number) {
+    if (!session?.user) {
+      setPostError("Please log in with Twitter to queue posts");
+      return;
+    }
+
+    setQueuing(idx);
+    setPostError(null);
+    setPostSuccess(null);
+
+    try {
+      const res = await fetch("/api/automation/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.details ?? data.error ?? "Failed to queue tweet");
+      }
+
+      const when = data.scheduledFor
+        ? new Date(data.scheduledFor).toLocaleString()
+        : "the next cron run";
+      setPostSuccess(`Queued for Auto Post — ${when}`);
+      setTimeout(() => setPostSuccess(null), 4000);
+    } catch (e) {
+      setPostError(e instanceof Error ? e.message : "Failed to queue");
+    } finally {
+      setQueuing(null);
     }
   }
 
@@ -101,6 +139,16 @@ export default function PostGenerator() {
           }`}
         >
           Generate Posts
+        </button>
+        <button
+          onClick={() => setActiveTab("queue")}
+          className={`pb-3 px-2 font-medium text-sm transition-colors ${
+            activeTab === "queue"
+              ? "text-blue-400 border-b-2 border-blue-400"
+              : "text-gray-400 hover:text-gray-300"
+          }`}
+        >
+          Queue
         </button>
         <button
           onClick={() => setActiveTab("suggestions")}
@@ -308,13 +356,22 @@ export default function PostGenerator() {
                         {copied === idx ? "Copied!" : "Copy"}
                       </button>
                       {session?.user ? (
-                        <button
-                          onClick={() => postToTwitter(post, idx)}
-                          disabled={posting === idx}
-                          className="text-xs text-white transition-colors px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {posting === idx ? "Posting..." : "Post"}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => queueForAutoPost(post, idx)}
+                            disabled={queuing === idx || posting === idx}
+                            className="text-xs text-white transition-colors px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {queuing === idx ? "Queuing..." : "Queue"}
+                          </button>
+                          <button
+                            onClick={() => postToTwitter(post, idx)}
+                            disabled={posting === idx || queuing === idx}
+                            className="text-xs text-white transition-colors px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {posting === idx ? "Posting..." : "Post"}
+                          </button>
+                        </>
                       ) : (
                         <span className="text-xs text-gray-500 px-3 py-1">
                           (log in to post)
@@ -328,6 +385,8 @@ export default function PostGenerator() {
           )}
         </div>
       )}
+
+      {activeTab === "queue" && <AutomationQueue />}
 
       {/* Reply Suggestions Tab */}
       {activeTab === "suggestions" && <ReplySuggestions />}

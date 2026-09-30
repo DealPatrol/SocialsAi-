@@ -5,10 +5,25 @@ CREATE TABLE IF NOT EXISTS automation_queue (
   tweet_content TEXT NOT NULL,
   scheduled_for TIMESTAMP NOT NULL DEFAULT NOW(),
   posted_at TIMESTAMP,
+  posted_tweet_id TEXT,
   status TEXT DEFAULT 'pending', -- pending, posted, failed
   error_message TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   CONSTRAINT valid_status CHECK (status IN ('pending', 'posted', 'failed'))
+);
+
+-- Encrypted per-user X OAuth tokens so cron can post as that user.
+-- NextAuth does not populate auth.uid(), so API routes use the service
+-- role after verifying the NextAuth session. Do not add public policies
+-- that expose these tokens through the Data API.
+CREATE TABLE IF NOT EXISTS x_accounts (
+  user_id TEXT PRIMARY KEY,
+  x_user_id TEXT,
+  username TEXT,
+  access_token_enc TEXT NOT NULL,
+  refresh_token_enc TEXT,
+  token_expires_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Automation Settings: User preferences for automation
@@ -60,11 +75,13 @@ ALTER TABLE automation_settings DROP COLUMN IF EXISTS follow_delay_days;
 ALTER TABLE automation_settings DROP COLUMN IF EXISTS dm_delay_hours;
 ALTER TABLE automation_settings ADD COLUMN IF NOT EXISTS suggestions_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE automation_settings ADD COLUMN IF NOT EXISTS max_suggestions_per_day INTEGER DEFAULT 5;
+ALTER TABLE automation_queue ADD COLUMN IF NOT EXISTS posted_tweet_id TEXT;
 
 -- Enable RLS for security
 ALTER TABLE automation_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE automation_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reply_suggestions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE x_accounts ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (users can only see their own data)
 CREATE POLICY "Users can see own automation queue"

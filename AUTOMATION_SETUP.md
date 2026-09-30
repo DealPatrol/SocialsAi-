@@ -26,6 +26,7 @@ This creates:
 - `automation_queue` - Stores tweets waiting to be posted
 - `automation_settings` - User preferences (auto-post interval, reply suggestions on/off)
 - `reply_suggestions` - AI-drafted replies awaiting your review
+- `x_accounts` - Encrypted user X tokens so cron can post as you (service-role only)
 
 The script is safe to re-run on a project that already has an older version of this
 schema — it drops the old `engagement_history` / `target_accounts` / `dm_templates`
@@ -60,6 +61,10 @@ TWITTER_OAUTH_ACCESS_TOKEN=app_level_token_with_tweet.read_and_users.read_scopes
 account's handle and fetching their recent public tweets) so Claude has real context
 to draft a suggestion from. It is never used to post, follow, like, or DM.
 
+Also set `ENCRYPTION_KEY` (or rely on `AUTH_SECRET`) so user X tokens can be stored
+encrypted in `x_accounts` for Auto Post. After deploy, sign in with Twitter once so
+your posting token is saved — cron cannot use the browser session JWT.
+
 ## Phase 3: Configure Twitter Developer Portal
 
 1. Go to your app in **Twitter Developer Portal**
@@ -93,15 +98,16 @@ to draft a suggestion from. It is never used to post, follow, like, or DM.
 4. Click "Save Settings"
 
 ### Step 4: Test the Post-Tweets Cron (Auto Post)
+Vercel cron sends GET. Manual tests can use GET or POST:
 ```bash
-curl -X POST https://yourdomain.vercel.app/api/cron/post-tweets \
+curl -X GET https://yourdomain.vercel.app/api/cron/post-tweets \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
-**Expected result**: Any queued tweets change status from "pending" → "posted".
+**Expected result**: Due queued tweets for users with Auto Post enabled change status from "pending" → "posted".
 
 ### Step 5: Test the Suggestions Cron
 ```bash
-curl -X POST https://yourdomain.vercel.app/api/cron/engagement \
+curl -X GET https://yourdomain.vercel.app/api/cron/engagement \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 **Expected result**: New rows appear in `reply_suggestions` with `status = 'pending'`.
@@ -147,9 +153,11 @@ curl https://yourdomain.vercel.app/api/automation/settings \
 
 **Issue**: Tweets not posting
 - Check `automation_queue` table - are tweets in "pending" status?
+- Verify Auto Post is enabled and you clicked **Queue** (immediate **Post** does not go through cron)
+- Confirm `x_accounts` has a row for your user after signing in with Twitter
 - Verify `CRON_SECRET` env var is set correctly
-- Check Twitter API credentials are valid
-- Look for error messages in `error_message` column
+- Check Twitter API credentials are valid and the X app has write credits
+- Look for error messages in `error_message` column (402 = add credits in the X Developer Portal, then Retry)
 
 **Issue**: No reply suggestions appearing
 - Make sure `suggestions_enabled` is TRUE in your settings

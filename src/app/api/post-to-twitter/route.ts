@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { persistTokensFromJwt } from "@/lib/x-accounts";
 import { postTweet, validateTweet, TwitterPostResponse } from "@/lib/twitter";
 
 export interface PostToTwitterRequest {
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    await persistTokensFromJwt(token);
 
     const body: PostToTwitterRequest = await req.json();
 
