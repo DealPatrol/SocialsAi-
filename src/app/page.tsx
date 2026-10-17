@@ -35,10 +35,10 @@ export default function Home() {
           </p>
           <div className="space-y-1.5">
             {[
-              "30–60 min replying to @levelsio, @dvassallo, @arvidkahl, @shl, @marc_louvion",
+              "30–60 min reviewing AI-builder reply drafts from @karpathy, @swyx, @OpenAI, @AnthropicAI, and indie SaaS accounts",
               "3–5 posts/day across all 5 content pillars",
               "Post natively with video when possible — algo boost",
-              "Engage in first 30 min after posting for velocity",
+              "Engage thoughtfully in the first 30 min after posting — no follow/like automation",
             ].map((tip, i) => (
               <div key={i} className="flex gap-2 text-xs text-gray-400">
                 <span className="text-blue-500 shrink-0">›</span>
